@@ -95,6 +95,10 @@
       "destination": "/api/index"
     },
     {
+      "source": "/api/((?!xaman/|chart/).+)",
+      "destination": "/api/index?path=$1"
+    },
+    {
       "source": "/((?!api/|favicon\\.png|apple-touch-icon\\.png|og-image\\.png|og-image\\.jpg|icons\\.svg|robots\\.txt).*)",
       "destination": "/index.html"
     }
