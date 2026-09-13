@@ -623,7 +623,7 @@ export default function ConnectedWallet() {
     <div className="connected-wallet">
       <header className="wallet-hero">
         <div className="wallet-hero-brand">
-          <img src="/favicon.png" alt="" className="wallet-mark" />
+          <img src="/mark.png?v=2" alt="" className="wallet-mark" />
           <div className="wallet-hero-copy">
             <p className="wallet-hero-label">{t.xioValue}</p>
             <p className={`wallet-hero-qty${empty ? " is-empty" : " is-filled"}`}>

@@ -365,7 +365,7 @@ export default function App() {
         <header className="dashboard-header neon-border">
           <div className="header-bar">
             <div className="header-brand">
-              <img src="/favicon.png" alt="" className="header-mark" />
+              <img src="/mark.png?v=2" alt="" className="header-mark" />
               <div className="header-brand-copy">
                 <h1 className="dashboard-title">{t.title}</h1>
                 <p className="dashboard-subtitle">{t.subtitle}</p>

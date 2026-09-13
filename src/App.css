@@ -364,8 +364,13 @@ body {
   height: 56px;
   border-radius: 50%;
   flex: 0 0 auto;
-  object-fit: cover;
+  object-fit: contain;
+  background: #050507;
   box-shadow: 0 0 18px rgba(152, 24, 240, 0.45);
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .wallet-mark {
