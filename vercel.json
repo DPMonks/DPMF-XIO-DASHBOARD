@@ -65,18 +65,6 @@
     "api/chart/candles.js": {
       "maxDuration": 15
     },
-    "api/aim/status.js": {
-      "maxDuration": 15
-    },
-    "api/aim/chat.js": {
-      "maxDuration": 30
-    },
-    "api/aim/locale.js": {
-      "maxDuration": 15
-    },
-    "api/aim/speak.js": {
-      "maxDuration": 30
-    },
     "api/chart/cex-candles.js": {
       "maxDuration": 20
     }
@@ -105,10 +93,6 @@
     {
       "source": "/api/",
       "destination": "/api/index"
-    },
-    {
-      "source": "/api/((?!xaman/|chart/|aim/).+)",
-      "destination": "/api/index?path=$1"
     },
     {
       "source": "/((?!api/|favicon\\.png|apple-touch-icon\\.png|og-image\\.png|og-image\\.jpg|icons\\.svg|robots\\.txt).*)",
