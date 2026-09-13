@@ -17,7 +17,7 @@ If Railway Hikari 429s the HTTP API, set server-only `DATABASE_URL` on Vercel / 
 | Indexer data | same-origin `/api/*` → XIO Postgres tables (Railway HTTP, or `DATABASE_URL` SELECT) |
 | Xaman | dashboard `/api/xaman/create-payload` using `XUMM_API_KEY` / `XUMM_API_SECRET` |
 
-The browser does **not** call Railway directly. Vite and Vercel proxy `/api/*` (except `/api/xaman/*`) to `https://dpmf-xio-indexer-TEST.up.railway.app`, send cluster identity headers, retry HTTP 429, and serialize fetches so the first holders/LP page can paint. Set `VITE_USE_DIRECT_INDEXER=true` only if you want the old direct client.
+The browser does **not** call Railway directly. Vite and Vercel proxy `/api/*` (except `/api/xaman/*`) to `https://dpmf-xio-indexer-production.up.railway.app`, send cluster identity headers, retry HTTP 429, and serialize fetches so the first holders/LP page can paint. Set `VITE_USE_DIRECT_INDEXER=true` only if you want the old direct client.
 
 On-ledger constants (do not treat `rDgGyBao…` as the pool):
 
@@ -45,7 +45,7 @@ Do not commit `.env` files. Production and preview read encrypted store values, 
 | --- | --- | --- |
 | `XUMM_API_KEY` | GitHub Actions secrets **and** Vercel env (Production + Preview) | Xaman API key for `/api/xaman/*` |
 | `XUMM_API_SECRET` | GitHub Actions secrets **and** Vercel env (Production + Preview) | Xaman API secret (server-only, no `VITE_` prefix) |
-| `VITE_API_BASE` | Vercel env (Production + Preview) | indexer **HTTP** host, e.g. `https://dpmf-xio-indexer-TEST.up.railway.app` |
+| `VITE_API_BASE` | Vercel env (Production + Preview) | indexer **HTTP** host, e.g. `https://dpmf-xio-indexer-production.up.railway.app` |
 | `INDEXER_ORIGIN` | Vercel env (optional) | override the server-side proxy target |
 | `DATABASE_URL` | Vercel env (Production + Preview), server-only | `postgres://postgres@acela.proxy.rlwy.net:48994/railway` (password optional in the URL) |
 | `POSTGRES_PASSWORD` | Vercel env (Production + Preview), server-only | Railway Postgres password, plain text. Overrides the URL password so `@` `#` `%` cannot break auth. |

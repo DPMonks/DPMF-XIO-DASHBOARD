@@ -17,13 +17,13 @@ Dashboard PR: https://github.com/DPMonks/DPMF-XIO-Dashboard/pull/1
 ## Base URL
 
 ```
-https://dpmf-xio-indexer-TEST.up.railway.app
+https://dpmf-xio-indexer-production.up.railway.app
 ```
 
 That is the real public host. There is no custom domain in this repo or in the handshake agents.
 
 ```
-VITE_API_BASE=https://dpmf-xio-indexer-TEST.up.railway.app
+VITE_API_BASE=https://dpmf-xio-indexer-production.up.railway.app
 ```
 
 Do not append `/api` if the client already prefixes `/api`. Do not use the Vercel indexer preview (SSO 302). Local indexer (undeployed rewrite) listens on `PORT=8080` → `http://localhost:8080`.
@@ -35,8 +35,8 @@ Do not append `/api` if the client already prefixes `/api`. Do not use the Verce
 There is **no** `/handshake` and **no** `/api/cluster/v1/handshake`. Confirmation is:
 
 ```
-GET https://dpmf-xio-indexer-TEST.up.railway.app/
-GET https://dpmf-xio-indexer-TEST.up.railway.app/health
+GET https://dpmf-xio-indexer-production.up.railway.app/
+GET https://dpmf-xio-indexer-production.up.railway.app/health
 ```
 
 PR #3 also ships `GET /health/xrpl` (404 on today’s Railway deploy).
@@ -518,7 +518,7 @@ Private Railway URL: mentioned by the handshake agent, hostname not published.
 
 ## How to lock the dashboard client
 
-1. `VITE_API_BASE=https://dpmf-xio-indexer-TEST.up.railway.app`
+1. `VITE_API_BASE=https://dpmf-xio-indexer-production.up.railway.app`
 2. Call the `/api/*` paths in the table. Never `/api/cluster/v1/*`.
 3. Tolerate **both** live and PR #3 shapes:
    - `overview.price` / `overview.source` optional

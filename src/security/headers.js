@@ -1,5 +1,5 @@
 export const PUBLIC_SITE_ORIGIN = "https://xio-exchange.dpmf.technology";
-export const INDEXER_ORIGIN = "https://dpmf-xio-indexer-TEST.up.railway.app";
+export const INDEXER_ORIGIN = "https://dpmf-xio-indexer-production.up.railway.app";
 export const DEXSCREENER_ORIGINS =
   "https://dexscreener.com https://www.dexscreener.com https://cdn.dexscreener.com https://*.dexscreener.com";
 

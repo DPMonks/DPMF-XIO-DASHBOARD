@@ -4,7 +4,7 @@ export const CLIENT = "dpmf-xio-dashboard";
 export const SERVICE = "dpmf-xio-indexer";
 
 export const DEFAULT_INDEXER_ORIGIN =
-  "https://dpmf-xio-indexer-TEST.up.railway.app";
+  "https://dpmf-xio-indexer-production.up.railway.app";
 
 export const CLUSTER_HEADERS = {
   accept: "application/json",

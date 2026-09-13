@@ -29,7 +29,7 @@ const handoff = {
     txjson: xioTrustSetTxjson(),
   },
   indexer: {
-    liveApi: "https://dpmf-xio-indexer-TEST.up.railway.app",
+    liveApi: "https://dpmf-xio-indexer-production.up.railway.app",
     doNotStartWorkers: true,
     doNotInventClusterV1: true,
     existingReads: [

@@ -18,7 +18,7 @@ Vite / `npm start` / Vercel proxy same-origin `/api/*` and `/health`.
 ## Base
 
 ```
-VITE_API_BASE=https://dpmf-xio-indexer-TEST.up.railway.app
+VITE_API_BASE=https://dpmf-xio-indexer-production.up.railway.app
 ```
 
 Auth: none. `accept: application/json` only. Xaman stays on this repo.
