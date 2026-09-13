@@ -260,6 +260,7 @@ function withPoolSplit(row, fallbackXioUsd, fallbackXrpUsd, prices = {}) {
     xio_pct: split?.xioPct ?? null,
     quote_pct: split?.quotePct ?? null,
     lead: split?.lead || null,
+    split_basis: split?.basis || null,
   };
 }
 

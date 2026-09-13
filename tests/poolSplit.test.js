@@ -193,3 +193,45 @@ test("detectQuoteUsd prefers live USD then XIO pool implied for any quote", () =
   });
   assert.ok(fromUsd.quotePct > 90);
 });
+
+
+test("preferUsdPoolSplit is USD-weighted for XIO/XDX-like skewed raw amounts", () => {
+  // Screenshot-like reserves: tiny XIO count, huge XDX count, equal USD at pool mark.
+  const balanced = preferUsdPoolSplit({
+    reserveXio: 149,
+    reserveQuote: 75_280_000,
+    lpSupply: 84_720,
+    xioUsd: 27.0875,
+    // no market quoteUsd — must not fall back to XIO/(XIO+LP) ≈ 0.2%
+  });
+  assert.ok(balanced);
+  assert.equal(balanced.basis, "usd_pool");
+  assert.ok(Math.abs(balanced.xioPct - 50) < 0.2);
+  assert.ok(Math.abs(balanced.quotePct - 50) < 0.2);
+
+  const marketSkew = preferUsdPoolSplit({
+    reserveXio: 149,
+    reserveQuote: 75_280_000,
+    lpSupply: 84_720,
+    xioUsd: 27.0875,
+    quoteUsd: 0.0001, // XDX richer than pool mark → quote-heavy bar
+  });
+  assert.equal(marketSkew.basis, "usd");
+  assert.ok(marketSkew.quotePct > 60);
+  assert.ok(marketSkew.xioPct < 40);
+});
+
+test("preferUsdPoolSplit never returns raw unit/LP bars when USD cannot be valued", () => {
+  const missing = preferUsdPoolSplit({
+    reserveXio: 149,
+    reserveQuote: 75_280_000,
+    lpSupply: 84_720,
+  });
+  assert.equal(missing, null);
+
+  const onlyLp = preferUsdPoolSplit({
+    reserveXio: 149,
+    lpSupply: 84_720,
+  });
+  assert.equal(onlyLp, null);
+});

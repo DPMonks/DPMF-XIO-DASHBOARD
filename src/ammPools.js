@@ -149,9 +149,10 @@ function withPoolSplitPercents(pool) {
     ...pool,
     reserve_currency: reserveQuote,
     reserve_quote: reserveQuote,
-    xio_pct: split?.xioPct ?? (reserveQuote != null ? pool.xio_pct : null),
-    quote_pct: split?.quotePct ?? (reserveQuote != null ? pool.quote_pct : null),
-    lead: split?.lead || (reserveQuote != null ? pool.lead : null),
+    xio_pct: split?.xioPct ?? null,
+    quote_pct: split?.quotePct ?? null,
+    lead: split?.lead || null,
+    split_basis: split?.basis || null,
   };
 }
 

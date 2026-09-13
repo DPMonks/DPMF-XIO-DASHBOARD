@@ -94,8 +94,11 @@ test("live amm_info updates the ratio box after an LP deposit or withdraw", () =
     reserve_asset: 40000000,
     reserve_currency: 80000,
     lp_supply: 40000,
+    xioUsd: 0.00004,
+    quote_usd: 1,
     xio_pct: 50,
     quote_pct: 50,
+    split_basis: "usd",
   };
   const live = {
     reserve_xio: 51709564.3635,
@@ -107,8 +110,39 @@ test("live amm_info updates the ratio box after an LP deposit or withdraw", () =
   assert.equal(next.reserve_asset, 51709564.3635);
   assert.equal(next.reserve_currency, 59.8319);
   assert.equal(next.lp_supply, 44896.6467);
-  assert.ok(next.xio_pct > 99);
-  assert.ok(next.quote_pct < 1);
+  // Value-weighted at catalog USD marks: XIO side dominates in USD.
+  assert.ok(next.xio_pct > 95);
+  assert.ok(next.quote_pct < 5);
+  assert.equal(next.split_basis, "usd");
+
+  // Screenshot-like XIO/XDX: skewed raw counts but balanced USD at pool mark.
+  const xdxCard = applyLivePoolReserves(
+    {
+      pool: "XIO/XDX",
+      quote: "XDX",
+      reserve_asset: 100,
+      reserve_currency: 50_000_000,
+      lp_supply: 80_000,
+      xioUsd: 27.0875,
+    },
+    {
+      reserve_xio: 149,
+      reserve_currency: 75_280_000,
+      lp_supply: 84_720,
+      reserve_source: "amm_info",
+    }
+  );
+  assert.ok(Math.abs(xdxCard.xio_pct - 50) < 0.2);
+  assert.ok(Math.abs(xdxCard.quote_pct - 50) < 0.2);
+  assert.equal(xdxCard.split_basis, "usd_pool");
+
+  // Without USD marks, do not paint a raw unit/LP bar.
+  const noUsd = applyLivePoolReserves(
+    { pool: "XIO/XDX", reserve_asset: 149, reserve_currency: 75_280_000, lp_supply: 84_720 },
+    { reserve_xio: 149, reserve_currency: 75_280_000, lp_supply: 84_720, reserve_source: "amm_info" }
+  );
+  assert.equal(noUsd.xio_pct, null);
+  assert.equal(noUsd.quote_pct, null);
   const leakedLive = applyLivePoolReserves(catalog, {
     reserve_xio: 51709564.3635,
     reserve_currency: 56027.4283,
