@@ -812,10 +812,16 @@ body {
 .dashboard-grid {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  gap: 2.25rem;
+  margin-top: 1.75rem;
   min-width: 0;
   max-width: 100%;
+}
+
+/* Soft category break between major decks (identical on XDX + XIO). */
+.dashboard-grid > * + * {
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(176, 140, 255, 0.14);
 }
 
 .wallet-token-row,
