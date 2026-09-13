@@ -1,0 +1,74 @@
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dpmf-scroll-thumb, rgba(199, 112, 255, 0.78))
+    var(--dpmf-scroll-track, #101018);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--dpmf-scroll-track, #101018);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #d28fff 0%, #c770ff 42%, #6a2d99 100%);
+  border: 2px solid var(--dpmf-scroll-track, #101018);
+  border-radius: 999px;
+  background-clip: padding-box;
+  box-shadow: 0 0 8px rgba(199, 112, 255, 0.35);
+}
+
+*::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(90deg, #d28fff 0%, #c770ff 42%, #6a2d99 100%);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--dpmf-scroll-thumb-hover, #d28fff);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--dpmf-scroll-track, #101018);
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+html {
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: #050507;
+  overflow-x: hidden;
+}
+
+button,
+input,
+a {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: rgba(0, 234, 255, 0.18);
+}

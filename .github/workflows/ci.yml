@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main, "cursor/**"]
+  pull_request:
+
+jobs:
+  guard-env:
+    name: no plaintext env
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if tracked .env files are present
+        run: |
+          set -euo pipefail
+          tracked="$(git ls-files | grep -E '(^|/)\.env($|\.(local|production|development|staging|dev|prod)$)' || true)"
+          if [ -n "$tracked" ]; then
+            echo "Plaintext env files must not be committed:"
+            echo "$tracked"
+            echo "Use GitHub Actions secrets and Vercel environment variables instead."
+            exit 1
+          fi
+
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_API_BASE: https://dpmf-xio-indexer-TEST.up.railway.app
+          NEXT_PUBLIC_INDEXER_URL: https://dpmf-xio-indexer-TEST.up.railway.app

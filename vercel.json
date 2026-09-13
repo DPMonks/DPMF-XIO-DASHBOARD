@@ -1,0 +1,118 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://xumm.app https://xio-exchange.dpmf.technology https://dexscreener.com https://www.dexscreener.com https://cdn.dexscreener.com https://*.dexscreener.com; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' https://xumm.app wss://xumm.app https://api.xrpl.to https://dpmf-xio-indexer-TEST.up.railway.app https://dexscreener.com https://www.dexscreener.com https://cdn.dexscreener.com https://*.dexscreener.com; frame-src https://dexscreener.com https://www.dexscreener.com https://cdn.dexscreener.com https://*.dexscreener.com; frame-ancestors 'self' https://dpmf.technology https://*.dpmf.technology https://xumm.app https://*.xumm.app https://xaman.app https://*.xaman.app; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'self' blob:; upgrade-insecure-requests"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "off"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "X-Permitted-Cross-Domain-Policies",
+          "value": "none"
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 20
+    },
+    "api/overview.js": {
+      "maxDuration": 20
+    },
+    "api/health.js": {
+      "maxDuration": 10
+    },
+    "api/[...path].js": {
+      "maxDuration": 20
+    },
+    "api/top-holders.js": {
+      "maxDuration": 20
+    },
+    "api/xaman/create-payload.js": {
+      "maxDuration": 15
+    },
+    "api/xaman/xapp-ott.js": {
+      "maxDuration": 15
+    },
+    "api/xaman/payload-result.js": {
+      "maxDuration": 15
+    },
+    "api/xaman/tx-status.js": {
+      "maxDuration": 15
+    },
+    "api/chart/candles.js": {
+      "maxDuration": 15
+    },
+    "api/aim/status.js": {
+      "maxDuration": 15
+    },
+    "api/aim/chat.js": {
+      "maxDuration": 30
+    },
+    "api/aim/locale.js": {
+      "maxDuration": 15
+    },
+    "api/aim/speak.js": {
+      "maxDuration": 30
+    },
+    "api/chart/cex-candles.js": {
+      "maxDuration": 20
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/health/xrpl",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/handshake",
+      "destination": "/api/index?path=handshake"
+    },
+    {
+      "source": "/cluster/:path*",
+      "destination": "/api/index?path=cluster/:path*"
+    },
+    {
+      "source": "/api",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/((?!xaman/|chart/|aim/).+)",
+      "destination": "/api/index?path=$1"
+    },
+    {
+      "source": "/((?!api/|favicon\\.png|apple-touch-icon\\.png|og-image\\.png|og-image\\.jpg|icons\\.svg|robots\\.txt).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

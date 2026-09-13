@@ -1,0 +1,124 @@
+.dex-wrapper {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #12001f, #1a002d);
+  box-shadow:
+    0 0 40px #9818f0aa,
+    0 0 80px #9818f055,
+    inset 0 0 35px #9818f033;
+  position: relative;
+  overflow: hidden;
+}
+
+.dex-shimmer {
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 220%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    #9818f015 45%,
+    #9818f033 50%,
+    #9818f015 55%,
+    transparent 100%
+  );
+  animation: shimmer 7s infinite linear;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.dex-responsive {
+  position: relative;
+  width: 100%;
+  padding-bottom: 62%;
+  height: 0;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.dex-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 16px;
+}
+
+.dex-loading {
+  position: absolute;
+  inset: 0;
+  background: #0a0014;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #9818f0;
+  font-size: 18px;
+  border-radius: 16px;
+  z-index: 10;
+}
+
+.dex-retry {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: #9818f0;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #fff;
+  z-index: 20;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-40%); }
+  100% { transform: translateX(40%); }
+}
+
+@media (max-width: 1180px) {
+  .dex-wrapper {
+    padding: 14px;
+  }
+
+  .dex-responsive {
+    padding-bottom: 72%;
+  }
+}
+
+@media (max-width: 834px) {
+  .dex-responsive {
+    padding-bottom: 78%;
+  }
+}
+
+@media (max-width: 700px) {
+  .dex-wrapper {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .dex-responsive {
+    padding-bottom: 92%;
+  }
+
+  .dex-loading {
+    font-size: 15px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .dex-wrapper {
+    padding: 8px;
+  }
+
+  .dex-responsive {
+    padding-bottom: 52%;
+  }
+}
