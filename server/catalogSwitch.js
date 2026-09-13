@@ -1,7 +1,7 @@
 import {preferRailwayXioVolume} from "../src/utils/lpVolume.js";
 import {mergeTradePrints} from "../src/xioTrades.js";
 import {bookHasTape, mergeOrderbookPayloads} from "../src/orderbook.js";
-import {payloadUsable, preferUsable, recallCatalog, rememberCatalog} from "./sourceControl.js";
+import {catalogMemoryKey, payloadUsable, preferUsable, recallCatalog, rememberCatalog} from "./sourceControl.js";
 
 function asObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
@@ -357,20 +357,20 @@ function jsonResult(body, source) {
   };
 }
 
-export async function serveCatalogFallback(suffix, loadLive) {
+export async function serveCatalogFallback(suffix, loadLive, search = "") {
   let live;
   try {
     live = typeof loadLive === "function" ? await loadLive(suffix) : null;
   } catch {
     // last-good catalog memory is the control measure when a free API blips
   }
-  const kept = preferUsable(suffix, live, recallCatalog(suffix));
+  const kept = preferUsable(suffix, live, recallCatalog(suffix, search));
   if (kept == null) return null;
-  if (payloadUsable(suffix, kept)) rememberCatalog(suffix, kept);
+  if (payloadUsable(suffix, kept)) rememberCatalog(suffix, kept, search);
   return jsonResult(kept, kept?.source || "xrpl.to");
 }
 
-export async function overlayDbResultWithLive(suffix, dbResult, loadLive) {
+export async function overlayDbResultWithLive(suffix, dbResult, loadLive, search = "") {
   if (!dbResult || dbResult.catalogOverlaid || dbResult.status >= 400 || typeof loadLive !== "function") {
     return dbResult;
   }
@@ -394,8 +394,8 @@ export async function overlayDbResultWithLive(suffix, dbResult, loadLive) {
     // last-good catalog memory fills empty Railway rows below
   }
   const merged = live != null ? mergeCatalogPayload(suffix, dbBody, live) : dbBody;
-  const kept = preferUsable(path, merged, recallCatalog(path));
-  if (payloadUsable(path, kept)) rememberCatalog(path, kept);
+  const kept = preferUsable(path, merged, recallCatalog(path, search));
+  if (payloadUsable(path, kept)) rememberCatalog(path, kept, search);
   if (kept == null) return { ...dbResult, catalogOverlaid: true };
   if (kept === dbBody) return { ...dbResult, catalogOverlaid: true };
   return {

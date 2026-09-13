@@ -121,14 +121,28 @@ function sessionWrite(key, data) {
 
 async function paginate(fetchPage, pageSize = PAGE_SIZE, onPage, maxRows = MAX_ROWS) {
   const all = [];
+  const seen = new Set();
   let offset = 0;
 
   while (offset < maxRows) {
     const page = asArray(await fetchPage(pageSize, offset));
     if (!page.length) break;
-    all.push(...page);
+    let added = 0;
+    for (const row of page) {
+      const account = String(row?.account || row?.address || row?.wallet || "").toLowerCase();
+      const pair = String(row?.pool_name || row?.pool || row?.pair || "")
+        .replace(/\s+/g, "")
+        .toUpperCase();
+      const key = account ? (pair ? `${account}|${pair}` : account) : "";
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      all.push(row);
+      added += 1;
+    }
     onPage?.(all);
     if (page.length < pageSize) break;
+    // Upstream ignored offset (same page again) — stop instead of twinning rows.
+    if (added === 0) break;
     offset += page.length;
     await sleep(600);
   }
@@ -264,10 +278,23 @@ function uniquePools(rows) {
   return out;
 }
 
+function dedupeOwnerRows(rows, keyOf) {
+  const seen = new Set();
+  const out = [];
+  for (const row of rows) {
+    const key = keyOf(row);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
 function finishHolders(rows) {
-  return rows
-    .map(mapHolder)
-    .filter((row) => row.account)
+  return dedupeOwnerRows(
+    rows.map(mapHolder).filter((row) => row.account),
+    (row) => String(row.account).toLowerCase()
+  )
     .sort((a, b) => Number(b.balance) - Number(a.balance))
     .map((row, index) => ({ ...row, rank: index + 1 }));
 }
@@ -297,9 +324,16 @@ function pickFreshness(payload, rows = []) {
 }
 
 function finishLp(rows) {
-  return rows
-    .map(mapLp)
-    .filter((row) => row.account)
+  return dedupeOwnerRows(
+    rows.map(mapLp).filter((row) => row.account),
+    (row) => {
+      const account = String(row.account).toLowerCase();
+      const pair = String(row.pair || row.pool_name || "")
+        .replace(/\s+/g, "")
+        .toUpperCase();
+      return pair ? `${account}|${pair}` : account;
+    }
+  )
     .sort((a, b) => Number(b.lp_balance) - Number(a.lp_balance))
     .map((row, index) => ({ ...row, rank: index + 1 }));
 }

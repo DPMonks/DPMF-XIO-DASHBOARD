@@ -2398,11 +2398,16 @@ function walletLedgerResult(suffix, search = "") {
 }
 
 async function serveLiveOrLastGood(suffix, search = "") {
-  return serveCatalogFallback(suffix, (path) => liveCatalogPayload(path, { search }));
+  return serveCatalogFallback(suffix, (path) => liveCatalogPayload(path, { search }), search);
 }
 
 async function withLiveCatalog(suffix, dbBody, search = "") {
-  return overlayDbResultWithLive(suffix, ok(dbBody), (path) => liveCatalogPayload(path, { search }));
+  return overlayDbResultWithLive(
+    suffix,
+    ok(dbBody),
+    (path) => liveCatalogPayload(path, { search }),
+    search
+  );
 }
 
 export async function readIndexerDb(suffix, search = "") {

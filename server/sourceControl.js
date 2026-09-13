@@ -2,6 +2,20 @@ function pathKey(suffix) {
   return String(suffix || "").split("?")[0];
 }
 
+const PAGED_CATALOG_PATHS = new Set(["top-holders", "top-holders-v2", "top-lp"]);
+
+/** Paginated list endpoints must not share one last-good blob across offsets. */
+export function catalogMemoryKey(suffix, search = "") {
+  const path = pathKey(suffix);
+  if (!PAGED_CATALOG_PATHS.has(path)) return path;
+  const params = new URLSearchParams(String(search || "").replace(/^\?/, ""));
+  const limit = params.get("limit") || "";
+  const offset = params.get("offset") || "0";
+  const pool = params.get("pool") || params.get("pair") || "";
+  const snapshot = params.get("snapshot") || "";
+  return `${path}?limit=${limit}&offset=${offset}&pool=${pool}&snapshot=${snapshot}`;
+}
+
 const lastGood = new Map();
 
 export function payloadUsable(suffix, body) {
@@ -35,14 +49,14 @@ export function payloadUsable(suffix, body) {
   return false;
 }
 
-export function rememberCatalog(suffix, body) {
+export function rememberCatalog(suffix, body, search = "") {
   if (!payloadUsable(suffix, body)) return false;
-  lastGood.set(pathKey(suffix), { at: Date.now(), body });
+  lastGood.set(catalogMemoryKey(suffix, search), { at: Date.now(), body });
   return true;
 }
 
-export function recallCatalog(suffix) {
-  return lastGood.get(pathKey(suffix))?.body ?? null;
+export function recallCatalog(suffix, search = "") {
+  return lastGood.get(catalogMemoryKey(suffix, search))?.body ?? null;
 }
 
 export function preferUsable(suffix, primary, fallback) {

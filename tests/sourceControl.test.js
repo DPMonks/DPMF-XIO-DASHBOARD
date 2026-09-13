@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {catalogHealth, catalogMode, payloadUsable, preferUsable, recallCatalog, rememberCatalog, resetCatalogMemory} from "../server/sourceControl.js";
+import {catalogHealth, catalogMemoryKey, catalogMode, payloadUsable, preferUsable, recallCatalog, rememberCatalog, resetCatalogMemory} from "../server/sourceControl.js";
 import {FREE_API_HEADERS, holdersFromXrplTo, flowsFromXrplToHistory, candlesFromOhlc, loadXrplToHolders, lpOwnersFromXrplTo, lpChartFromGraph, xrpSparkFromCoinGecko} from "../server/xrplToCatalog.js";
 
 test("last-good catalog memory keeps a usable free-API payload", () => {
@@ -90,4 +90,27 @@ test("LP rich lists and CoinGecko XRP sparks map onto indexer shapes", () => {
   const spark = xrpSparkFromCoinGecko({ prices: [[1_787_526_000_000, 1.48]] });
   assert.equal(spark[0].asset, "XRP");
   assert.equal(spark[0].price_usd, 1.48);
+});
+
+test("paginated rich-list memory is keyed by offset so pages do not twin", () => {
+  resetCatalogMemory();
+  const page0 = {
+    holders: [{ rank: 1, account: "rBank", balance: 100 }],
+    count: 200,
+    source: "xrpl.to",
+  };
+  const page100 = {
+    holders: [{ rank: 101, account: "rOther", balance: 1 }],
+    count: 200,
+    source: "xrpl.to",
+  };
+  assert.notEqual(
+    catalogMemoryKey("top-holders", "?limit=100&offset=0"),
+    catalogMemoryKey("top-holders", "?limit=100&offset=100")
+  );
+  assert.equal(rememberCatalog("top-holders", page0, "?limit=100&offset=0"), true);
+  assert.equal(rememberCatalog("top-holders", page100, "?limit=100&offset=100"), true);
+  assert.equal(recallCatalog("top-holders", "?limit=100&offset=0").holders[0].account, "rBank");
+  assert.equal(recallCatalog("top-holders", "?limit=100&offset=100").holders[0].account, "rOther");
+  resetCatalogMemory();
 });

@@ -239,8 +239,11 @@ export async function fetchIndexerFirst(paths, { method = "GET", body, search = 
   if (method === "GET" && hasIndexerDatabase()) {
     dbResult = await readIndexerDb(suffix, search);
     if (dbResult && dbResult.status < 400) {
-      const overlaid = await overlayDbResultWithLive(suffix, dbResult, (path) =>
-        liveCatalogPayload(path, { search })
+      const overlaid = await overlayDbResultWithLive(
+        suffix,
+        dbResult,
+        (path) => liveCatalogPayload(path, { search }),
+        search
       );
       return withSource(overlaid, overlaid.source || "postgres");
     }
@@ -261,7 +264,11 @@ export async function fetchIndexerFirst(paths, { method = "GET", body, search = 
     }
     // Postgres is configured but down. Serve free APIs / last-good instead of 503.
     if (dbResult && dbResult.status >= 400) {
-      const fallback = await serveCatalogFallback(suffix, (path) => liveCatalogPayload(path, { search }));
+      const fallback = await serveCatalogFallback(
+        suffix,
+        (path) => liveCatalogPayload(path, { search }),
+        search
+      );
       if (fallback) return withSource(fallback, fallback.source || "xrpl.to");
       return withSource(dbResult, "postgres");
     }
@@ -270,7 +277,11 @@ export async function fetchIndexerFirst(paths, { method = "GET", body, search = 
   // No postgres:// on this deploy: still serve the free catalog.
   if (!hasIndexerDatabase()) {
     if (catalogOrHealth) return localDashboardStatus(suffix);
-    const fallback = await serveCatalogFallback(suffix, (path) => liveCatalogPayload(path, { search }));
+    const fallback = await serveCatalogFallback(
+      suffix,
+      (path) => liveCatalogPayload(path, { search }),
+      search
+    );
     if (fallback) return withSource(fallback, fallback.source || "xrpl.to");
     return indexerErrorHint({
       status: 503,

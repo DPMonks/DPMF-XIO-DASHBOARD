@@ -25,6 +25,29 @@ export function suffixFromVercelReq(req) {
   return "";
 }
 
+/** Vercel Node often omits ?query from req.url; rebuild from req.query. */
+export function searchFromVercelReq(req) {
+  const fromUrl = String(req.url || "");
+  if (fromUrl.includes("?")) return fromUrl.slice(fromUrl.indexOf("?"));
+  const query = req.query && typeof req.query === "object" ? req.query : null;
+  if (!query) return "";
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (key === "path") continue;
+    if (value == null || value === "") continue;
+    if (Array.isArray(value)) {
+      for (const part of value) {
+        if (part == null || part === "") continue;
+        params.append(key, String(part));
+      }
+    } else {
+      params.set(key, String(value));
+    }
+  }
+  const text = params.toString();
+  return text ? `?${text}` : "";
+}
+
 export async function writeIndexerResponse(req, res, forcedSuffix) {
   for (const [key, value] of Object.entries(proxyCorsHeaders(req))) {
     res.setHeader(key, value);
@@ -41,7 +64,7 @@ export async function writeIndexerResponse(req, res, forcedSuffix) {
     return;
   }
 
-  const search = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+  const search = searchFromVercelReq(req);
   const isHandshake = /handshake$/i.test(suffix);
   const method = isHandshake && req.method === "HEAD" ? "GET" : req.method;
   const body =
