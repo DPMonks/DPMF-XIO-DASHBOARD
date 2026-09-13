@@ -40,12 +40,12 @@ test("TrustSet payloads submit to XRPL; SignIn payloads do not", () => {
   assert.equal(trust.options.return_url.web, "https://xio-exchange.dpmf.technology/?xaman={id}");
   assert.equal(shouldSubmitTxjson(trust.txjson), true);
 
-  const fromBody = buildXamanPayload("https://xio-exchange.dpmf.technology", xioTrustSetTxjson());
+  const fromBody = buildXamanPayload("https://dpmf-xio-dashboard-test.vercel.app", xioTrustSetTxjson());
   assert.equal(fromBody.options.submit, true);
 
   const marker = "ab".repeat(16);
   const marked = buildXamanPayload(
-    "https://xio-exchange.dpmf.technology",
+    "https://dpmf-xio-dashboard-test.vercel.app",
     { TransactionType: "Payment", Amount: "1" },
     { signMarker: marker }
   );
@@ -63,7 +63,7 @@ test("TrustSet payloads submit to XRPL; SignIn payloads do not", () => {
 
 test("xApp payloads stay in the wallet overlay and do not bounce to a return URL", () => {
   const payload = buildXamanPayload(
-    "https://xio-exchange.dpmf.technology",
+    "https://dpmf-xio-dashboard-test.vercel.app",
     { TransactionType: "Payment", Amount: "1" },
     { xapp: true }
   );
@@ -73,10 +73,10 @@ test("xApp payloads stay in the wallet overlay and do not bounce to a return URL
 });
 
 test("buildSignInPayload returns to the site with the payload id after Xaman", () => {
-  const payload = buildSignInPayload("https://xio-exchange.dpmf.technology/");
+  const payload = buildSignInPayload("https://dpmf-xio-dashboard-test.vercel.app/");
   assert.equal(payload.txjson.TransactionType, "SignIn");
-  assert.equal(payload.options.return_url.app, "https://xio-exchange.dpmf.technology/?xaman={id}");
-  assert.equal(payload.options.return_url.web, "https://xio-exchange.dpmf.technology/?xaman={id}");
+  assert.equal(payload.options.return_url.app, "https://dpmf-xio-dashboard-test.vercel.app/?xaman={id}");
+  assert.equal(payload.options.return_url.web, "https://dpmf-xio-dashboard-test.vercel.app/?xaman={id}");
   assert.equal(payload.options.submit, false);
 });
 
@@ -92,29 +92,29 @@ test("requestOrigin prefers the forwarded host", () => {
   );
 });
 
-test("Xaman Next never returns to a Vercel login host", () => {
+test("Xaman return keeps the live Vercel dashboard host", () => {
   assert.equal(
     requestOrigin({
       headers: {
         "x-forwarded-proto": "https",
-        "x-forwarded-host": "dpmf-xio-dashboard-git-cursor-mobile-sig-a5d2b5-dpmf-s-projects.vercel.app",
+        "x-forwarded-host": "dpmf-xio-dashboard-test.vercel.app",
       },
     }),
-    "https://xio-exchange.dpmf.technology"
+    "https://dpmf-xio-dashboard-test.vercel.app"
   );
   assert.equal(
     requestOrigin({
-      headers: { host: "dpmf-xio-dashboard-TEST.vercel.app" },
+      headers: { host: "dpmf-xio-dashboard-test.vercel.app" },
     }),
-    "https://xio-exchange.dpmf.technology"
+    "https://dpmf-xio-dashboard-test.vercel.app"
   );
   assert.equal(
     siteOriginFrom("https://vercel.com/dpmf-s-projects/dpmf-xio-dashboard"),
-    "https://xio-exchange.dpmf.technology"
+    "https://dpmf-xio-dashboard-test.vercel.app"
   );
   assert.equal(
-    xamanReturnUrl("https://dpmf-xio-dashboard-TEST.vercel.app"),
-    "https://xio-exchange.dpmf.technology/?xaman={id}"
+    xamanReturnUrl("https://dpmf-xio-dashboard-test.vercel.app"),
+    "https://dpmf-xio-dashboard-test.vercel.app/?xaman={id}"
   );
   assert.equal(
     requestOrigin({

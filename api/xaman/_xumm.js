@@ -33,7 +33,7 @@ export function xummConfigured() {
   };
 }
 
-export const PUBLIC_SITE_ORIGIN = "https://xio-exchange.dpmf.technology";
+export const PUBLIC_SITE_ORIGIN = "https://dpmf-xio-dashboard-test.vercel.app";
 
 export function publicSiteOrigin() {
   const fromEnv = xummCredential("PUBLIC_SITE_URL", "SITE_ORIGIN");
@@ -46,7 +46,8 @@ export function isLocalHost(host) {
 
 export function isVercelHost(host) {
   const name = String(host || "").trim().toLowerCase();
-  return name === "vercel.com" || name.endsWith(".vercel.com") || name.endsWith(".vercel.app");
+  // App hosts only — not vercel.com project/login URLs.
+  return name.endsWith(".vercel.app");
 }
 
 export function isPublicSiteHost(host) {
@@ -62,7 +63,11 @@ export function siteOriginFrom(value) {
     if (isLocalHost(url.host)) {
       return `${url.protocol}//${url.host}`.replace(/\/$/, "");
     }
-    if (isVercelHost(url.host) || !isPublicSiteHost(url.host)) {
+    if (isVercelHost(url.host)) {
+      // Keep the live dashboard host (test Vercel) so Xaman returns here.
+      return `${url.protocol}//${url.host}`.replace(/\/$/, "");
+    }
+    if (!isPublicSiteHost(url.host)) {
       return publicSiteOrigin();
     }
     return `${url.protocol}//${url.host}`.replace(/\/$/, "");

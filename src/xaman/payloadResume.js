@@ -21,7 +21,7 @@ export function isPayloadUuid(value) {
 }
 
 export function xamanReturnUrl(origin) {
-  const web = String(origin || "https://xio-exchange.dpmf.technology").replace(/\/$/, "");
+  const web = String(origin || (typeof window !== "undefined" ? window.location.origin : "https://dpmf-xio-dashboard-test.vercel.app")).replace(/\/$/, "");
   return `${web}/?xaman={id}`;
 }
 
