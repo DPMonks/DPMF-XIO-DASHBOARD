@@ -188,10 +188,18 @@ export function indexPoolsByPair(pools = []) {
 
 export function mergeLpPoolSource(row = {}, catalogPool = null) {
   if (!catalogPool) return row;
+  const rowAmm = String(row.amm_account || "").toLowerCase();
+  const catAmm = String(catalogPool.amm_account || "").toLowerCase();
+  if (rowAmm && catAmm && rowAmm !== catAmm) return row;
+  const rowHex = String(row.lp_currency || row.lp_currency_hex || "").toUpperCase();
+  const catHex = String(catalogPool.lp_currency || catalogPool.lp_currency_hex || "").toUpperCase();
+  if (rowHex && catHex && rowHex !== catHex) return row;
   const catalogSupply = num(catalogPool.lp_supply);
   return {
     ...row,
     ...catalogPool,
+    amm_account: row.amm_account || catalogPool.amm_account,
+    lp_currency: row.lp_currency || row.lp_currency_hex || catalogPool.lp_currency || catalogPool.lp_currency_hex,
     quote: catalogPool.quote || row.quote,
     lp_supply: catalogSupply > 0 ? catalogSupply : num(row.lp_supply),
     reserve_asset:
@@ -211,10 +219,13 @@ export function mergeLpPoolSource(row = {}, catalogPool = null) {
 export function lookupLpPool(row, poolsByPair) {
   const hex = String(row?.lp_currency || row?.lp_currency_hex || "").toUpperCase();
   if (hex && poolsByPair.get(hex)) return poolsByPair.get(hex);
-  const name = normalizeWalletPair(row?.pool_name || row?.pool || row?.pair);
-  if (name && poolsByPair.get(name)) return poolsByPair.get(name);
   const amm = String(row?.amm_account || "").toLowerCase();
   if (amm && poolsByPair.get(amm)) return poolsByPair.get(amm);
+  // Never fall back to pair name when the row already names a specific AMM —
+  // catalog often keeps a different same-named pool (second XIO/RLUSD, etc.).
+  if (amm || hex) return null;
+  const name = normalizeWalletPair(row?.pool_name || row?.pool || row?.pair);
+  if (name && poolsByPair.get(name)) return poolsByPair.get(name);
   return null;
 }
 
@@ -223,9 +234,15 @@ export function resolveLpPairName(pool = {}, pairHint = "") {
     .replace(/^0x/i, "")
     .toUpperCase();
   const amm = String(pool.amm_account || pool.amm || "").trim();
-  if (hex === XIO_RLUSD_LP_HEX || amm === XIO_RLUSD_AMM) return "XIO/RLUSD";
-  if (hex === XIO_XRP_LP_HEX || amm === XIO_XRP_AMM) return "XIO/XRP";
-  if (hex === XIO_XDX_LP_HEX || amm === XIO_XDX_AMM) return "XIO/XDX";
+  if ((XIO_RLUSD_LP_HEX && hex === XIO_RLUSD_LP_HEX) || (XIO_RLUSD_AMM && amm === XIO_RLUSD_AMM)) {
+    return "XIO/RLUSD";
+  }
+  if ((XIO_XRP_LP_HEX && hex === XIO_XRP_LP_HEX) || (XIO_XRP_AMM && amm === XIO_XRP_AMM)) {
+    return "XIO/XRP";
+  }
+  if ((XIO_XDX_LP_HEX && hex === XIO_XDX_LP_HEX) || (XIO_XDX_AMM && amm === XIO_XDX_AMM)) {
+    return "XIO/XDX";
+  }
 
   const quote = String(pool.quote || "").trim().toUpperCase().replace(/^XIO\//, "");
   if (quote && quote !== "XRP") return normalizeWalletPair(`XIO/${quote}`);
@@ -317,7 +334,9 @@ export function lpPositionFromPool(lpBalance, pool = {}, pairHint = "") {
   const pair = resolveLpPairName(pool, pairHint) || "XIO/UNKNOWN";
   const supply = num(pool.lp_supply);
   const knownShare = num(pool.lp_share_percent);
-  const share = supply > 0 ? tokens / supply : knownShare != null ? knownShare / 100 : 0;
+  const rawShare = supply > 0 ? tokens / supply : knownShare != null ? knownShare / 100 : 0;
+  // Cap at 100%: cross-AMM pair-name merges used to invent multi-thousand % shares.
+  const share = Math.min(1, Math.max(0, rawShare));
   const reserveXio = num(pool.reserve_asset ?? pool.reserve_xio) || 0;
   const reserveQuote = num(pool.reserve_currency ?? pool.reserve_quote) || 0;
   const withdrawXio =
@@ -463,8 +482,10 @@ function volumeForWindow(row, flowVol, windowMs) {
     if (catalog24h > 0) return Math.max(catalog24h, fromFlows);
     return fromFlows;
   }
-  if (catalog7d > 0) return Math.max(catalog7d, fromFlows);
-  if (fromFlows > 0) return fromFlows;
+  // 7d must be >= this position's 24h catalog so the earn board never shows 24h > 7d
+  // when catalog7d is missing and the flow tape is sparse.
+  const week = Math.max(catalog7d, fromFlows, catalog24h);
+  if (week > 0) return week;
   if (catalog24h > 0) return catalog24h * (windowMs / DAY_MS);
   return fromFlows;
 }
@@ -517,31 +538,47 @@ export function lpPoolEarnings(
   const vol24h = volumeByPool(flows, DAY_MS, now);
   const vol7d = volumeByPool(flows, DAY_MS * 7, now);
   const prices = { xioUsd, xrpUsd, rlusdUsd, xioXrp };
-  const byPair = new Map(
-    (Array.isArray(positions) ? positions : [])
-      .filter((row) => isXioAmmPair(row))
-      .map((row) => [normalizeWalletPair(row.pool || row.pool_name), row])
-  );
+  const held = (Array.isArray(positions) ? positions : []).filter((row) => isXioAmmPair(row));
   const pools = {};
   for (const pair of FEATURED_EARN_PAIRS) {
-    const row = byPair.get(pair);
-    if (!row || !((num(row.lp_share_percent) || 0) > 0)) {
+    const rows = held.filter(
+      (row) => normalizeWalletPair(row.pool || row.pool_name) === pair && (num(row.lp_share_percent) || 0) > 0
+    );
+    if (!rows.length) {
       pools[pair] = emptyPoolEarn(pair);
       continue;
     }
-    const share = Number(row.lp_share_percent) / 100;
-    const rate = tradingFeeRate(row.trading_fee);
-    const day = splitPoolFee(row, volumeForWindow(row, vol24h, DAY_MS) * rate * share, xioXrp);
-    const week = splitPoolFee(row, volumeForWindow(row, vol7d, DAY_MS * 7) * rate * share, xioXrp);
+    const day = emptyEarnings();
+    const week = emptyEarnings();
+    let quoteId = pair.split("/")[1] || "";
+    for (const row of rows) {
+      const share = Math.min(1, Number(row.lp_share_percent) / 100);
+      const rate = tradingFeeRate(row.trading_fee);
+      const daySplit = splitPoolFee(row, volumeForWindow(row, vol24h, DAY_MS) * rate * share, xioXrp);
+      const weekSplit = splitPoolFee(row, volumeForWindow(row, vol7d, DAY_MS * 7) * rate * share, xioXrp);
+      day.xio += daySplit.xio;
+      day.xrp += daySplit.quoteId === "XRP" ? daySplit.quote : 0;
+      day.rlusd += daySplit.quoteId === "RLUSD" ? daySplit.quote : 0;
+      week.xio += weekSplit.xio;
+      week.xrp += weekSplit.quoteId === "XRP" ? weekSplit.quote : 0;
+      week.rlusd += weekSplit.quoteId === "RLUSD" ? weekSplit.quote : 0;
+      quoteId = daySplit.quoteId || quoteId;
+    }
+    const dayUsd = (day.xio * (Number(prices.xioUsd) || 0))
+      + (day.xrp * (Number(prices.xrpUsd) || 0))
+      + (day.rlusd * (Number(prices.rlusdUsd) || 1));
+    const weekUsd = (week.xio * (Number(prices.xioUsd) || 0))
+      + (week.xrp * (Number(prices.xrpUsd) || 0))
+      + (week.rlusd * (Number(prices.rlusdUsd) || 1));
     pools[pair] = {
       pair,
-      quote: day.quoteId || pair.split("/")[1],
+      quote: quoteId,
       xio24h: day.xio,
-      quote24h: day.quote,
-      usd24h: usdForSplit(day, prices),
+      quote24h: quoteId === "XRP" ? day.xrp : quoteId === "RLUSD" ? day.rlusd : 0,
+      usd24h: dayUsd,
       xio7d: week.xio,
-      quote7d: week.quote,
-      usd7d: usdForSplit(week, prices),
+      quote7d: quoteId === "XRP" ? week.xrp : quoteId === "RLUSD" ? week.rlusd : 0,
+      usd7d: weekUsd,
     };
   }
   return pools;
@@ -551,7 +588,7 @@ function earningsForWindow(positions, flowVol, windowMs, { xioUsd, xrpUsd, rlusd
   const next = emptyEarnings();
   for (const row of Array.isArray(positions) ? positions : []) {
     if (!isXioAmmPair(row)) continue;
-    const share = (num(row.lp_share_percent) || 0) / 100;
+    const share = Math.min(1, (num(row.lp_share_percent) || 0) / 100);
     if (!(share > 0)) continue;
     const feeXio = volumeForWindow(row, flowVol, windowMs) * tradingFeeRate(row.trading_fee) * share;
     if (!(feeXio > 0)) continue;
@@ -586,7 +623,7 @@ export function lpFeeEarnings(
   let stake = 0;
   for (const row of Array.isArray(positions) ? positions : []) {
     if (!isXioAmmPair(row)) continue;
-    const share = (num(row.lp_share_percent) || 0) / 100;
+    const share = Math.min(1, (num(row.lp_share_percent) || 0) / 100);
     if (!(share > 0)) continue;
     xio += volumeForWindow(row, vol24h, DAY_MS) * tradingFeeRate(row.trading_fee) * share;
     stake += num(row.withdraw_estimate_xio) || 0;
@@ -667,13 +704,20 @@ function feeEarningsFilled(fees) {
 function mergeKeptLp(current = [], next = []) {
   if (!Array.isArray(next) || !next.length) return current || [];
   const map = new Map();
+  function keyFor(row) {
+    const amm = String(row?.amm_account || "").toLowerCase();
+    if (amm) return `amm:${amm}`;
+    const hex = String(row?.lp_currency || "").toUpperCase();
+    if (hex) return `lp:${hex}`;
+    return `pair:${normalizeWalletPair(row.pool || row.pool_name)}`;
+  }
   for (const row of Array.isArray(current) ? current : []) {
     const name = normalizeWalletPair(row.pool || row.pool_name);
-    if (isXioAmmPair(name)) map.set(name, row);
+    if (isXioAmmPair(name)) map.set(keyFor(row), row);
   }
   for (const row of next) {
     const name = normalizeWalletPair(row.pool || row.pool_name);
-    if (isXioAmmPair(name)) map.set(name, row);
+    if (isXioAmmPair(name)) map.set(keyFor(row), row);
   }
   return [...map.values()];
 }
@@ -813,19 +857,31 @@ export function composeWalletSnapshot({
   const shares = supplyShares(xioBal, circulating, totalSupply);
 
   const poolByName = indexPoolsByPair(pools);
-  const lpByPair = new Map();
+  const lpByKey = new Map();
+  function lpDedupeKey(position) {
+    const amm = String(position?.amm_account || "").toLowerCase();
+    if (amm) return `amm:${amm}`;
+    const hex = String(position?.lp_currency || "").toUpperCase();
+    if (hex) return `lp:${hex}`;
+    return `pair:${normalizeWalletPair(position?.pool || position?.pool_name)}`;
+  }
+  function keepLp(position) {
+    if (!position) return;
+    const key = lpDedupeKey(position);
+    const previous = lpByKey.get(key);
+    if (!previous || position.lp_balance > previous.lp_balance) {
+      lpByKey.set(key, position);
+    }
+  }
   for (const row of Array.isArray(lpRows) ? lpRows : []) {
     const name = normalizeWalletPair(row.pool_name || row.pool || row.pair);
-    const position = lpPositionFromPool(
-      row.lp_balance ?? row.lp,
-      mergeLpPoolSource(row, lookupLpPool(row, poolByName)),
-      name
+    keepLp(
+      lpPositionFromPool(
+        row.lp_balance ?? row.lp,
+        mergeLpPoolSource(row, lookupLpPool(row, poolByName)),
+        name
+      )
     );
-    if (!position) continue;
-    const previous = lpByPair.get(position.pool);
-    if (!previous || position.lp_balance > previous.lp_balance) {
-      lpByPair.set(position.pool, position);
-    }
   }
   const lineRows = Array.isArray(lines) && lines.length
     ? lines
@@ -835,12 +891,9 @@ export function composeWalletSnapshot({
         ? balances.raw.lines
         : [];
   for (const position of positionsFromLines(lineRows, pools)) {
-    const previous = lpByPair.get(position.pool);
-    if (!previous || position.lp_balance > previous.lp_balance) {
-      lpByPair.set(position.pool, position);
-    }
+    keepLp(position);
   }
-  const lp = [...lpByPair.values()];
+  const lp = [...lpByKey.values()];
 
   const xrpBook = books?.books?.["XIO/XRP"] || null;
   const pending = pendingFor(address, { offersKnown: true });

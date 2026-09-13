@@ -676,3 +676,100 @@ test("each pair marks LP tokens from that pool's reserves, including a missing q
   assert.ok(Math.abs(fromCatalog[0].usd - rlusdUsd) < 0.05);
   assert.equal(poolForIncomePair("XIO/RLUSD", [], [rlusdPool]).lp_supply, rlusdPool.lp_supply);
 });
+
+test("same-named AMM pools do not cross-wire LP share or invent 24h>7d fees", async () => {
+  const {composeWalletSnapshot, lookupLpPool, indexPoolsByPair, mergeLpPoolSource, lpPositionFromPool} = await import("../src/wallet/composeWallet.js");
+  const pools = [
+    {
+      pool: "XIO/RLUSD",
+      quote: "RLUSD",
+      amm_account: "rMassTiny",
+      lp_currency: "03548FABB100CBD33E38B211427A04EC66D7D52A",
+      lp_supply: 10,
+      reserve_asset: 2,
+      reserve_currency: 50,
+      trading_fee: 1000,
+      volume24hXio: 1.592,
+      volume7dXio: 0,
+    },
+    {
+      pool: "XIO/XRP",
+      quote: "XRP",
+      amm_account: "rPYfrbCvJGGEs9ddUtRiq58kCJBw9hoGij",
+      lp_currency: "030AE7B410D0ECF1DEC886D216866C31C898C875",
+      lp_supply: 3141.95,
+      reserve_asset: 3.74,
+      reserve_currency: 77.6,
+      trading_fee: 1000,
+      volume24hXio: 12.22,
+      volume7dXio: 85.55,
+    },
+  ];
+  const byPair = indexPoolsByPair(pools);
+  const bigRow = {
+    pool: "XIO/RLUSD",
+    quote: "RLUSD",
+    amm_account: "rLbBzBig",
+    lp_currency: "03BCD44104644B711C58CD14CD13CBA65757CFBE",
+    lp_balance: 17907.41,
+    lp_supply: 46865.73,
+    lp_share_percent: 38.21,
+    trading_fee: 1000,
+    reserve_asset: 0,
+    reserve_currency: 340,
+  };
+  assert.equal(lookupLpPool(bigRow, byPair), null);
+  assert.equal(mergeLpPoolSource(bigRow, pools[0]).amm_account, "rLbBzBig");
+  const pos = lpPositionFromPool(bigRow.lp_balance, mergeLpPoolSource(bigRow, lookupLpPool(bigRow, byPair)), "XIO/RLUSD");
+  assert.ok(pos.lp_share_percent <= 100);
+  assert.ok(Math.abs(pos.lp_share_percent - 38.21) < 0.1);
+
+  const snap = composeWalletSnapshot({
+    address: "rWallet",
+    balances: { xio: 4088, xrp: 9, rlusd: 77 },
+    prices: { xioUsd: 28.2, xrpUsd: 1.36, RLUSD: 1, xioPerXrp: 20.74 },
+    token: { circulating: 9983, xioPerXrp: 20.74, xioUsd: 28.2 },
+    pools,
+    lpRows: [
+      bigRow,
+      {
+        pool: "XIO/RLUSD",
+        quote: "RLUSD",
+        amm_account: "rMassTiny",
+        lp_currency: "03548FABB100CBD33E38B211427A04EC66D7D52A",
+        lp_balance: 10,
+        lp_supply: 10,
+        lp_share_percent: 100,
+        trading_fee: 1000,
+        reserve_asset: 2,
+        reserve_currency: 50,
+        volume24hXio: 1.592,
+        volume7dXio: 0,
+      },
+      {
+        pool: "XIO/XRP",
+        quote: "XRP",
+        amm_account: "rPYfrbCvJGGEs9ddUtRiq58kCJBw9hoGij",
+        lp_currency: "030AE7B410D0ECF1DEC886D216866C31C898C875",
+        lp_balance: 3.74,
+        lp_supply: 3141.95,
+        lp_share_percent: 0.119,
+        trading_fee: 1000,
+        reserve_asset: 3.74,
+        reserve_currency: 77.6,
+        volume24hXio: 12.22,
+        volume7dXio: 85.55,
+      },
+    ],
+    flows: [],
+  });
+  const earn = snap.fees.earnings;
+  // Pre-fix this reproduced ~$620 / 21.96 XIO from a 179074% share.
+  assert.ok(earn.usd24h < 5, `usd24h inflated: ${earn.usd24h}`);
+  assert.ok(earn.xio24h < 1, `xio24h inflated: ${earn.xio24h}`);
+  assert.ok(earn.usd7d >= earn.usd24h - 1e-9, `24h>7d: ${earn.usd24h} vs ${earn.usd7d}`);
+  const xrpPool = earn.pools["XIO/XRP"];
+  assert.ok(xrpPool.usd24h < 0.01);
+  assert.ok(xrpPool.usd7d >= xrpPool.usd24h - 1e-9);
+  assert.equal(snap.lp.filter((row) => row.pool === "XIO/RLUSD").length, 2);
+});
