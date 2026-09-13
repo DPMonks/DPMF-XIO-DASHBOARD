@@ -6,8 +6,8 @@ export const XIO_CURRENCY = "XIO";
 export const XIO_HEX = "58494F0000000000000000000000000000000000";
 /** Nominal ceiling; gateway obligations ~9983 XIO as of fork. */
 export const XIO_TOTAL_SUPPLY = 10_000;
-export const XIO_ISSUED_AT = "";
-export const XIO_XRPL_TO_MD5 = "";
+export const XIO_ISSUED_AT = "2021-10-24T00:00:00.000Z";
+export const XIO_XRPL_TO_MD5 = "850edef1e93476d34aac3e8aaa03943b";
 
 export function issuerLockedFromIssued(issued, total = XIO_TOTAL_SUPPLY) {
   const out = Number(issued);

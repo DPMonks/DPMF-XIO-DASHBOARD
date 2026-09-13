@@ -16,7 +16,7 @@ import {XIO_ISSUED_AT, XIO_ISSUER} from "../src/constants/ledger.js";
 import {backdateRlusdCandle, usdLookup} from "../src/chart/pairQuote.js";
 import {candlesFromMarketData, ticksToCandles} from "../src/chart/candles.js";
 
-const ISSUED = Date.parse(XIO_ISSUED_AT);
+const ISSUED = Date.parse(XIO_ISSUED_AT) || Date.parse("2021-10-24T00:00:00.000Z");
 const OUT = new URL("../src/data/lockedCandles.json", import.meta.url);
 const INFTF_BASE = `https://xrpldata.inftf.org/v1/iou/market_data/${XIO_ISSUER}_XIO/XRP`;
 
@@ -89,7 +89,7 @@ async function lockXioXrp() {
   }
   const seen = new Map();
   for (const row of candlesFromMarketData(pages, "inftf")) {
-    seen.set(row.t, row);
+    if (Number(row.c) > 0.001) seen.set(row.t, row);
   }
   return [...seen.values()].sort((left, right) => left.t - right.t);
 }
@@ -100,9 +100,14 @@ const xioRlusd = xioXrp
   .map((candle) => backdateRlusdCandle(candle, usdLookup(xrpUsd, candle.t)))
   .filter(Boolean);
 
+const last = xioXrp.at(-1);
+if (!(Number(last?.c) > 1)) {
+  throw new Error(`Refusing lock: last XIO/XRP close is ${last?.c} (want tens of XRP, not XDX dust)`);
+}
+
 const locked = {
   lockedAt: new Date().toISOString(),
-  issuedAt: XIO_ISSUED_AT,
+  issuedAt: XIO_ISSUED_AT || "2021-10-24T00:00:00.000Z",
   interval: "1D",
   pairs: {
     "XIO/XRP": {
@@ -129,6 +134,7 @@ console.log(
       xioRlusd: xioRlusd.length,
       firstXio: xioXrp[0]?.t && new Date(xioXrp[0].t).toISOString(),
       lastXio: xioXrp.at(-1)?.t && new Date(xioXrp.at(-1).t).toISOString(),
+      lastClose: last?.c,
     },
     null,
     2
