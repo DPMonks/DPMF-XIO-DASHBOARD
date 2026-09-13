@@ -111,8 +111,8 @@ export default function AmmCard({ pools, loading, error, onAddLiquidity, onRemov
   });
 
   function pullLive(pool, extra = {}) {
-    if (!pool) return;
-    getLiveLpReserves({
+    if (!pool) return Promise.resolve(null);
+    return getLiveLpReserves({
       pair: pool.pool || pool.pool_name,
       quote: poolQuoteTicker(pool),
       issuer: pool.quote_issuer,
@@ -121,7 +121,7 @@ export default function AmmCard({ pools, loading, error, onAddLiquidity, onRemov
       fresh: extra.fresh,
     })
       .then((live) => {
-        if (!live || live.empty || live.reserve_source === "empty") return;
+        if (!live || live.empty || live.reserve_source === "empty") return null;
         if (
           looksLikeLpAsQuote({
             reserveXio: live.reserve_xio ?? live.reserve_asset,
@@ -130,19 +130,60 @@ export default function AmmCard({ pools, loading, error, onAddLiquidity, onRemov
             quote: live.quote || live.pair || pool.quote || pool.pool,
           })
         ) {
-          return;
+          return null;
         }
-        setLiveByKey((current) => ({ ...current, [poolKey(pool)]: live }));
+        const key = poolKey(pool);
+        const stamped = {
+          ...live,
+          pair: live.pair || pool.pool || pool.pool_name,
+          quote: live.quote || pool.quote || poolQuoteTicker(pool),
+          reserve_source: live.reserve_source || "amm_info",
+          at: Date.now(),
+        };
+        setLiveByKey((current) => {
+          const prior = current[key];
+          const baseline = prior?.baseline;
+          // Keep a fresher signed trade overlay while amm_info still mirrors the pre-trade snapshot.
+          if (
+            prior?.reserve_source === "trade" &&
+            baseline &&
+            Number(prior.at) > 0 &&
+            Date.now() - Number(prior.at) < 15_000 &&
+            Number(stamped.lp_supply) === Number(baseline.lp_supply) &&
+            Number(stamped.reserve_asset ?? stamped.reserve_xio) ===
+              Number(baseline.reserve_asset ?? baseline.reserve_xio) &&
+            Number(stamped.reserve_currency ?? stamped.reserve_quote) ===
+              Number(baseline.reserve_currency ?? baseline.reserve_quote)
+          ) {
+            return current;
+          }
+          return { ...current, [key]: stamped };
+        });
+        return stamped;
       })
-      .catch(() => {});
+      .catch(() => null);
   }
 
   function refreshLive(targets, extra = {}) {
     const rows = (Array.isArray(targets) ? targets : []).filter(Boolean).slice(0, 8);
     window.clearTimeout(liveTimer.current);
     liveTimer.current = window.setTimeout(() => {
-      rows.forEach((pool) => pullLive(pool, extra));
+      rows.forEach((pool) => {
+        void pullLive(pool, extra);
+      });
     }, extra.fresh ? 220 : 40);
+  }
+
+  function pollLiveAfterTrade(targets) {
+    const rows = (Array.isArray(targets) ? targets : []).filter(Boolean).slice(0, 8);
+    const delays = [220, 700, 1600, 3200];
+    delays.forEach((ms) => {
+      window.setTimeout(() => {
+        rows.forEach((pool) => {
+          void pullLive(pool, { fresh: true });
+        });
+      }, ms);
+    });
   }
 
   function applyTradeThenLive(detail) {
@@ -150,23 +191,44 @@ export default function AmmCard({ pools, loading, error, onAddLiquidity, onRemov
     const rows = filterAmmPools(mergeAmmPoolLists(pools, found), query);
     const targets = pair ? rows.filter((row) => ammPoolName(row) === pair) : rows.slice(0, 6);
     const nextTargets = targets.length ? targets : rows.slice(0, 6);
+    const beforeByKey = {};
     setLiveByKey((current) => {
       const next = { ...current };
       for (const row of nextTargets) {
-        const shown = applyLivePoolReserves(row, current[poolKey(row)]);
+        const key = poolKey(row);
+        const shown = applyLivePoolReserves(row, current[key]);
+        beforeByKey[key] = {
+          reserve_xio: shown.reserve_asset ?? shown.reserve_xio,
+          reserve_asset: shown.reserve_asset ?? shown.reserve_xio,
+          reserve_currency: shown.reserve_currency,
+          reserve_quote: shown.reserve_currency,
+          lp_supply: shown.lp_supply,
+          pair: shown.pool || shown.pool_name || pair,
+          quote: shown.quote || poolQuoteTicker(shown),
+          reserve_source: "trade",
+          at: Date.now(),
+        };
         const traded = applyTradePoolReserves(shown, detail);
-        next[poolKey(row)] = {
+        next[key] = {
           reserve_xio: traded.reserve_asset ?? traded.reserve_xio,
           reserve_asset: traded.reserve_asset ?? traded.reserve_xio,
           reserve_currency: traded.reserve_currency,
           reserve_quote: traded.reserve_currency,
           lp_supply: traded.lp_supply,
+          pair: traded.pool || traded.pool_name || pair,
+          quote: traded.quote || poolQuoteTicker(traded),
+          xdx_pct: traded.xdx_pct,
+          xio_pct: traded.xio_pct,
+          quote_pct: traded.quote_pct,
+          lead: traded.lead,
           reserve_source: traded.reserve_source || "trade",
+          at: Date.now(),
+          baseline: beforeByKey[key],
         };
       }
       return next;
     });
-    refreshLive(nextTargets, { fresh: true });
+    pollLiveAfterTrade(nextTargets);
   }
 
   function recordTradeVolume(detail) {

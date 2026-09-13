@@ -157,12 +157,15 @@ function withPoolSplitPercents(pool) {
 
 export function applyLivePoolReserves(pool, live) {
   if (!pool) return pool;
-  const leakedLive = looksLikeLpAsQuote({
-    reserveXio: live?.reserve_xio ?? live?.reserve_asset,
-    reserveQuote: live?.reserve_currency ?? live?.reserve_quote,
-    lpSupply: live?.lp_supply,
-    quote: live?.quote || live?.pair || pool?.quote || pool?.pool,
-  });
+  const trustTrade = live?.reserve_source === "trade";
+  const leakedLive =
+    !trustTrade &&
+    looksLikeLpAsQuote({
+      reserveXio: live?.reserve_xio ?? live?.reserve_asset,
+      reserveQuote: live?.reserve_currency ?? live?.reserve_quote,
+      lpSupply: live?.lp_supply,
+      quote: live?.quote || live?.pair || pool?.quote || pool?.pool,
+    });
   const overlaid = live && !leakedLive ? overlayLiveAmmReserves(pool, live) : pool;
   const next = withPoolSplitPercents(overlaid);
   return {
@@ -174,8 +177,14 @@ export function applyLivePoolReserves(pool, live) {
   };
 }
 
+function finiteAmount(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 function tradeDeltaFromDetail(detail = {}) {
   const trade = detail.trade || {};
+  const withdraw = trade.withdraw || detail.withdraw || {};
   const tx = detail.txjson || {};
   const action = String(trade.action || detail.action || "").toLowerCase();
   const txType = String(tx.TransactionType || "").toLowerCase();
@@ -185,20 +194,22 @@ function tradeDeltaFromDetail(detail = {}) {
   const xioFromTx = isXioAmount(tx.Amount) ? first : isXioAmount(tx.Amount2) ? second : first;
   const quoteFromTx = isXioAmount(tx.Amount) ? second : isXioAmount(tx.Amount2) ? first : second;
   const xio =
-    Number(trade.withdraw?.base ?? trade.xio) ||
-    Number(remove ? 0 : trade.amount) ||
-    Number(xioFromTx) ||
+    finiteAmount(withdraw.base) ??
+    finiteAmount(trade.xio) ??
+    (remove ? null : finiteAmount(trade.amount)) ??
+    finiteAmount(xioFromTx) ??
     0;
   const quote =
-    Number(trade.withdraw?.quote ?? (remove ? 0 : trade.quoteQty ?? trade.quote)) ||
-    Number(quoteFromTx) ||
+    finiteAmount(withdraw.quote) ??
+    (remove ? null : finiteAmount(trade.quoteQty ?? trade.quote)) ??
+    finiteAmount(quoteFromTx) ??
     0;
   const lp =
-    Number(
+    finiteAmount(
       remove
         ? trade.lpAmount ?? issuedAmountValue(tx.LPTokenIn)
         : detail.lpReceived ?? trade.lpOut ?? issuedAmountValue(tx.LPTokenOut)
-    ) || 0;
+    ) ?? 0;
   return { remove, xio, quote, lp };
 }
 

@@ -1,7 +1,7 @@
 import {XIO_HEX, XIO_ISSUER} from "../constants/ledger.js";
 import {pairFromVoteAssets} from "../wallet/ammVote.js";
 
-const XIO_PREFIX = "584458";
+const XIO_PREFIX = "58494F";
 
 export function isXioAmount(amount) {
   if (amount == null || typeof amount !== "object") return false;
@@ -51,7 +51,7 @@ export function overlayLiveAmmReserves(row = {}, live = null) {
     lp_currency: live.lp_currency || row.lp_currency || row.lp_currency_hex || null,
     quote_issuer: live.quote_issuer || live.issuer || row.quote_issuer || null,
     quote_hex: live.quote_hex || live.hex || row.quote_hex || null,
-    reserve_source: "amm_info",
+    reserve_source: live.reserve_source || "amm_info",
   };
 }
 

@@ -138,6 +138,55 @@ test("live amm_info updates the ratio box after an LP deposit or withdraw", () =
   assert.equal(tradePoolHint({ trade: { pair: "XIO/XDX" } }), "XIO/XDX");
 });
 
+
+test("signed LP trade overlays still paint when quote looked like LP supply", () => {
+  const pool = {
+    pool: "XIO/XDX",
+    quote: "XDX",
+    reserve_asset: 51_709_564.3635,
+    reserve_currency: 56027.4283,
+    lp_supply: 56027.4283,
+    xio_pct: 50,
+    quote_pct: 50,
+  };
+  const traded = applyTradePoolReserves(pool, {
+    trade: { action: "removeLp", pair: "XIO/XDX", withdraw: { base: 1_000_000, quote: 1000 }, lpAmount: 1000 },
+  });
+  const live = {
+    reserve_xio: traded.reserve_asset,
+    reserve_asset: traded.reserve_asset,
+    reserve_currency: traded.reserve_currency,
+    lp_supply: traded.lp_supply,
+    reserve_source: "trade",
+  };
+  const painted = applyLivePoolReserves(pool, live);
+  assert.equal(painted.reserve_asset, traded.reserve_asset);
+  assert.equal(painted.lp_supply, traded.lp_supply);
+  assert.notEqual(painted.reserve_asset, pool.reserve_asset);
+});
+
+test("single-sided remove with zero opposing leg still shrinks that reserve", () => {
+  const pool = {
+    pool: "XIO/XDX",
+    quote: "XDX",
+    reserve_asset: 1000,
+    reserve_currency: 40,
+    lp_supply: 200,
+  };
+  const removed = applyTradePoolReserves(pool, {
+    trade: {
+      action: "removeLp",
+      pair: "XIO/XDX",
+      withdraw: { base: 0, quote: 8 },
+      lpAmount: 20,
+      singleAsset: "quote",
+    },
+  });
+  assert.equal(removed.reserve_asset, 1000);
+  assert.equal(removed.reserve_currency, 32);
+  assert.equal(removed.lp_supply, 180);
+});
+
 test("add or remove LP updates the card from the signed amounts immediately", () => {
   const pool = {
     pool: "XIO/XDX",
