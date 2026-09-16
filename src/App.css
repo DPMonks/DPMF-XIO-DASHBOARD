@@ -4323,7 +4323,7 @@ body {
 
 .wallet-income-table th:nth-child(1),
 .wallet-income-table td:nth-child(1) {
-  width: 28%;
+  width: 26%;
 }
 
 .wallet-income-table th:nth-child(2),
@@ -4331,7 +4331,7 @@ body {
 .wallet-income-table td.is-pool-share,
 .wallet-income-table td.is-lp,
 .wallet-income-table td.is-lp-add {
-  width: 50%;
+  width: 52%;
   text-align: left;
   min-width: 0;
 }
@@ -4343,14 +4343,13 @@ body {
   padding-right: 4px;
 }
 
+/* Amount (right) | ticker (left) with a shared gutter on every row */
 .wallet-income-assets {
-  display: grid;
-  grid-template-columns: minmax(9ch, max-content) 5.5ch;
-  column-gap: 0.45rem;
-  row-gap: 0.12rem;
-  align-items: baseline;
-  justify-content: start;
-  width: max-content;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.12rem;
+  width: 20.5ch;
   max-width: 100%;
   margin: 0;
   padding: 0;
@@ -4359,11 +4358,18 @@ body {
 }
 
 .wallet-income-assets .wallet-income-line {
-  display: contents;
+  display: grid;
+  grid-template-columns: 14ch 6ch;
+  column-gap: 0.5rem;
+  align-items: baseline;
+  width: 20.5ch;
+  max-width: 100%;
 }
 
 .wallet-income-assets .wallet-income-amt,
-.wallet-income-assets .wallet-asset-amt {
+.wallet-income-assets .wallet-asset-amt,
+.wallet-lp-earn .wallet-income-amt,
+.wallet-lp-earn .wallet-asset-amt {
   margin: 0;
   padding: 0;
   font-weight: 700;
@@ -4372,16 +4378,20 @@ body {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   min-width: 0;
 }
 
 .wallet-income-assets .wallet-income-ticker,
-.wallet-income-assets .wallet-asset-ticker {
-  display: inline-block;
+.wallet-income-assets .wallet-asset-ticker,
+.wallet-lp-earn .wallet-income-ticker,
+.wallet-lp-earn .wallet-asset-ticker {
+  display: block;
   box-sizing: border-box;
-  width: 5.5ch;
-  min-width: 5.5ch;
-  max-width: 5.5ch;
+  width: 6ch;
+  min-width: 6ch;
+  max-width: 6ch;
   margin: 0;
   padding: 0;
   font-style: normal;
@@ -4393,6 +4403,10 @@ body {
   text-overflow: ellipsis;
   letter-spacing: 0.02em;
   text-align: left;
+}
+
+.wallet-lp-earn.wallet-income-assets {
+  width: 20.5ch;
 }
 
 .wallet-income-table td.is-earn {
