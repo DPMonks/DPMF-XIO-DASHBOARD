@@ -293,6 +293,48 @@ export function incomePairBalance({
   }, 0);
 }
 
+
+/** Underlying assets for an LP share or fee (XIO + quote). Users earn assets, not LP. */
+export function poolShareAssets({
+  lpBalance = 0,
+  lpSupply = 0,
+  lpSharePercent = 0,
+  reserveXio = 0,
+  reserveQuote = 0,
+  withdrawXio = 0,
+  withdrawQuote = 0,
+  feeXio = 0,
+  quoteAsset = "",
+  pair = "",
+} = {}) {
+  const quoteLabel = String(quoteAsset || (String(pair || "").split("/")[1] || "")).trim();
+  const supply = num(lpSupply);
+  const lp = num(lpBalance);
+  let share =
+    supply > 0 && lp > 0
+      ? lp / supply
+      : Math.min(1, Math.max(0, num(lpSharePercent) / 100));
+  const rx = num(reserveXio);
+  const rq = num(reserveQuote);
+  const fee = num(feeXio);
+  let assetXio = num(withdrawXio);
+  let assetQuote = num(withdrawQuote);
+  if (fee > 0) {
+    // Match feeIncomeUsd half/half attribution for XRP-style pairs.
+    const half = fee / 2;
+    assetXio = half;
+    assetQuote = rx > 0 ? half * (rq / rx) : 0;
+  } else {
+    if (!(assetXio > 0) && share > 0 && rx > 0) assetXio = share * rx;
+    if (!(assetQuote > 0) && share > 0 && rq > 0) assetQuote = share * rq;
+  }
+  return {
+    assetXio: assetXio > 0 ? assetXio : 0,
+    assetQuote: assetQuote > 0 ? assetQuote : 0,
+    quoteAsset: quoteLabel,
+  };
+}
+
 export function incomeHeldPoolRows({
   positions = [],
   pools = [],
@@ -306,11 +348,23 @@ export function incomeHeldPoolRows({
     .map((pair) => {
       const pool = poolForIncomePair(pair, positions, pools);
       const lp = num(pool.lp_balance);
+      const assets = poolShareAssets({
+        lpBalance: lp,
+        lpSupply: pool.lp_supply,
+        lpSharePercent: pool.lp_share_percent,
+        reserveXio: pool.reserve_asset ?? pool.reserve_xio,
+        reserveQuote: pool.reserve_currency ?? pool.reserve_quote,
+        withdrawXio: pool.withdraw_estimate_xio,
+        withdrawQuote: pool.withdraw_estimate_quote,
+        quoteAsset: pool.quote || pool.quoteName,
+        pair,
+      });
       return {
         pair,
         date: "",
         lpBalance: lp,
         lpTokens: lp,
+        ...assets,
         usd: lpTokenUsd(lp, pool, book),
         kind: "hold",
       };
@@ -667,10 +721,18 @@ export function lpFeeIncomeRows({
       const feeXio = bucket.xio * rate * share;
       if (!(feeXio > 0)) continue;
       const lpTokens = lpEquivalent(feeXio, position);
+      const assets = poolShareAssets({
+        feeXio,
+        reserveXio: position.reserve_asset ?? position.reserve_xio,
+        reserveQuote: position.reserve_currency ?? position.reserve_quote,
+        quoteAsset: position.quote || position.quoteName,
+        pair,
+      });
       rows.push({
         date: bucket.date,
         lpTokens,
         pair,
+        ...assets,
         usd: feeIncomeUsd(feeXio, position, priceBookOnDay(bucket.date, dayBooks, book)),
         kind: "fee",
       });
@@ -804,9 +866,21 @@ export function dailyLpIncomeTotals(rows = []) {
     if (!date || !isXioAmmPair(pair)) continue;
     if (row.kind && row.kind !== "fee") continue;
     const key = `${date}|${pair}`;
-    const current = map.get(key) || { date, pair, lpTokens: 0, usd: 0, kind: "fee" };
+    const current = map.get(key) || {
+      date,
+      pair,
+      lpTokens: 0,
+      usd: 0,
+      assetXio: 0,
+      assetQuote: 0,
+      quoteAsset: row.quoteAsset || pair.split("/")[1] || "",
+      kind: "fee",
+    };
     current.lpTokens += num(row.lpTokens);
     current.usd += Number(row.usd) || 0;
+    current.assetXio += num(row.assetXio);
+    current.assetQuote += num(row.assetQuote);
+    if (row.quoteAsset) current.quoteAsset = row.quoteAsset;
     map.set(key, current);
   }
   return mergeLpIncomeRows([...map.values()]);
@@ -856,6 +930,9 @@ export function mergeFrozenFees(...lists) {
       lpTokens: tokens,
       lpEarned: tokens,
       usd: Number(row.usd) || 0,
+      assetXio: num(row.assetXio),
+      assetQuote: num(row.assetQuote),
+      quoteAsset: row.quoteAsset || pair.split("/")[1] || "",
       kind: "fee",
     });
   }
@@ -945,12 +1022,15 @@ export function pageLpIncome(rows = [], daysShown = INCOME_PAGE_DAYS) {
 
 export function lpIncomeCsv(rows = []) {
   const holds = (Array.isArray(rows) ? rows : []).every((row) => row?.kind === "hold");
-  const lines = holds ? ["Pair,LP Balance,USD"] : ["Date,LP earned,USD,Trading pair"];
+  const lines = holds
+    ? ["Pair,XIO,Quote,Quote amount,USD"]
+    : ["Date,XIO,Quote,Quote amount,USD,Trading pair"];
   for (const row of Array.isArray(rows) ? rows : []) {
+    const quote = row.quoteAsset || "";
     lines.push(
       (holds
-        ? [row.pair, row.lpBalance ?? row.lpTokens, row.usd]
-        : [row.date, row.lpEarned ?? row.lpTokens, row.usd, row.pair])
+        ? [row.pair, row.assetXio ?? "", quote, row.assetQuote ?? "", row.usd]
+        : [row.date, row.assetXio ?? "", quote, row.assetQuote ?? "", row.usd, row.pair])
         .map((value) => {
           const text = value == null ? "" : String(value);
           return text.includes(",") ? `"${text.replaceAll('"', '""')}"` : text;

@@ -1,6 +1,6 @@
 import {normalizeSwapMode, swapModeById} from "./swapModes.js";
 
-const AMM_HOP = { label: "AMM hop", fee: "0–1%" };
+const AMM_HOP = { label: "AMM hop", fee: "0-1%" };
 const BOOK_HOP = { label: "Order book hop", fee: "0%" };
 const RIPPLE_HOP = { label: "Rippling hop", fee: "0%" };
 const BRIDGE_HOP = { label: "Auto-bridge hop", fee: "0%" };

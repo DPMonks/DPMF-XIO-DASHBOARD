@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {lpFeeEarnings} from "../src/wallet/composeWallet.js";
-import {INCOME_ALL_PAIRS, HISTORICAL_INCOME_DAYS, dailyHeldLpBalances, dailyLpIncomeTotals, earliestHeldDay, fillContinuousVolumeDays, incomePairBalance, incomePairChoices, incomePairTotals, incomeRowsForPair, isXioAmmPair, lpDepositIncomeRows, lpFeeIncomeRows, lpIncomeCsv, lpTokenUsd, priceBookOnDay, mergeLpIncomeRows, mergeRecordedLpIncome, pageLpIncome, poolForIncomePair, readRecordedLpIncome, writeRecordedLpIncome} from "../src/wallet/lpIncome.js";
+import {INCOME_ALL_PAIRS, HISTORICAL_INCOME_DAYS, dailyHeldLpBalances, dailyLpIncomeTotals, earliestHeldDay, fillContinuousVolumeDays, incomePairBalance, incomePairChoices, incomePairTotals, incomeHeldPoolRows, poolShareAssets, incomeRowsForPair, isXioAmmPair, lpDepositIncomeRows, lpFeeIncomeRows, lpIncomeCsv, lpTokenUsd, priceBookOnDay, mergeLpIncomeRows, mergeRecordedLpIncome, pageLpIncome, poolForIncomePair, readRecordedLpIncome, writeRecordedLpIncome} from "../src/wallet/lpIncome.js";
 import {composeWalletSnapshot} from "../src/wallet/composeWallet.js";
 import {XIO_XRP_AMM, XIO_XRP_LP_HEX} from "../src/constants/ledger.js";
 
@@ -95,7 +95,8 @@ test("income list is newest XIO pair days first and pages by 10 days", () => {
     10
   );
   assert.equal(new Set(paged.map((row) => row.date)).size, 10);
-  assert.match(lpIncomeCsv(rows), /^Date,LP earned,USD,Trading pair\n/);
+  assert.match(lpIncomeCsv(rows), /^Date,XIO,Quote,Quote amount,USD,Trading pair\n/);
+  assert.ok(rows.every((row) => Number(row.assetXio) > 0 && Number(row.assetQuote) > 0));
 });
 
 test("lpTokenUsd does not mark LP tokens at the XRP price when quote reserve is LP supply", () => {
@@ -172,7 +173,8 @@ test("All pairs lists each held pool balance and current USD worth", () => {
   assert.equal(rows.length, 2);
   assert.ok(rows.every((row) => row.kind === "hold" && row.lpTokens > 0 && row.usd > 0));
   assert.equal(rows.find((row) => row.pair === "XIO/XRP").lpBalance, 100);
-  assert.equal(lpIncomeCsv(rows).startsWith("Pair,LP Balance,USD"), true);
+  assert.equal(lpIncomeCsv(rows).startsWith("Pair,XIO,Quote,Quote amount,USD"), true);
+  assert.ok(rows.every((row) => row.assetXio > 0 && row.assetQuote > 0));
   const totals = incomePairTotals({
     pair: INCOME_ALL_PAIRS,
     positions: rows.map((row) => ({ pool: row.pair, lp_balance: row.lpBalance })),
@@ -773,3 +775,42 @@ test("same-named AMM pools do not cross-wire LP share or invent 24h>7d fees", as
   assert.ok(xrpPool.usd7d >= xrpPool.usd24h - 1e-9);
   assert.equal(snap.lp.filter((row) => row.pool === "XIO/RLUSD").length, 2);
 });
+
+
+test("underlying pool share assets use lpBalance/lpTotalSupply * reserves", () => {
+  const rows = incomeHeldPoolRows({
+    positions: [
+      {
+        pool: "XIO/XRP",
+        lp_balance: 1000,
+        lp_supply: 10_000,
+        reserve_asset: 50_000,
+        reserve_currency: 200,
+        quote: "XRP",
+      },
+    ],
+    pools: [],
+    xioUsd: 0.00005,
+    xrpUsd: 1.2,
+  });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].lpBalance, 1000);
+  assert.equal(rows[0].assetXio, 5000);
+  assert.equal(rows[0].assetQuote, 20);
+  assert.equal(rows[0].quoteAsset, "XRP");
+});
+
+
+test("fee XIO splits into both pool assets for display", () => {
+  const assets = poolShareAssets({
+    feeXio: 100,
+    reserveXio: 50_000,
+    reserveQuote: 200,
+    quoteAsset: "XRP",
+    pair: "XIO/XRP",
+  });
+  assert.equal(assets.assetXio, 50);
+  assert.equal(assets.assetQuote, 0.2);
+  assert.equal(assets.quoteAsset, "XRP");
+});
+

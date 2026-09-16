@@ -136,12 +136,27 @@ function SupplyShareBars({ supply, locale, t, empty }) {
 function PoolWindowValue({ pool, window, locale, empty }) {
   if (empty || !pool) return "—";
   const xio = window === "7d" ? pool.xio7d : pool.xio24h;
+  const quote = window === "7d" ? pool.quote7d : pool.quote24h;
   const usd = window === "7d" ? pool.usd7d : pool.usd24h;
-  if (!(Number(xio) > 0) && !(Number(usd) > 0)) return "—";
+  const quoteLabel = pool.quote || "";
+  const hasXio = Number(xio) > 0;
+  const hasQuote = Number(quote) > 0;
+  if (!hasXio && !hasQuote && !(Number(usd) > 0)) return "—";
   return (
-    <span className="wallet-lp-earn">
-      <b>{formatToken(xio, locale, 2)}</b>
-      <i>{formatUsd(usd, locale)}</i>
+    <span className="wallet-lp-earn wallet-income-assets">
+      {hasXio ? (
+        <b>
+          <span className="wallet-asset-amt">{formatToken(xio, locale, 2)}</span>{" "}
+          <span className="wallet-asset-ticker">XIO</span>
+        </b>
+      ) : null}
+      {hasQuote ? (
+        <b>
+          <span className="wallet-asset-amt">{formatToken(quote, locale, 4)}</span>{" "}
+          <span className="wallet-asset-ticker">{quoteLabel}</span>
+        </b>
+      ) : null}
+      {Number(usd) > 0 ? <i className="wallet-earn-usd">{formatUsd(usd, locale)}</i> : null}
     </span>
   );
 }
@@ -329,7 +344,7 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
   return (
     <section className={`wallet-book wallet-income${empty ? " is-empty" : " is-filled"}`}>
       <div className="wallet-income-head">
-        <h3>{t.lpPassiveIncome || "LP Earning/Passive income"}</h3>
+        <h3>{t.lpPassiveIncome || "POOL EARNING/PASSIVE INCOME"}</h3>
         <div className="wallet-income-tools">
           <label className="wallet-lp-select wallet-income-select">
             <span className="sr-only">{t.incomePairSelect || t.incomePair || "Pair"}</span>
@@ -347,18 +362,6 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
             </select>
           </label>
           <div className="wallet-income-totals">
-            {!allPairs ? (
-              <p className="wallet-income-total" aria-label={t.incomeTotalLp || "Total LP"}>
-                {empty || !(totals.lp > 0) ? (
-                  "—"
-                ) : (
-                  <>
-                    {formatToken(totals.lp, locale, 4)}
-                    <small>{t.incomeLpTokens || "LP"}</small>
-                  </>
-                )}
-              </p>
-            ) : null}
             <p className="wallet-income-total is-usd" aria-label={t.incomeUsd || "USD"}>
               {empty || !(totals.usd > 0) ? "—" : formatUsd(totals.usd, locale)}
             </p>
@@ -388,7 +391,7 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
           <thead>
             <tr>
               <th>{allPairs ? t.incomePair || "Pair" : t.incomeDate || "Date"}</th>
-              <th>{allPairs ? t.incomeLpBalance || "LP Balance" : t.incomeLpAdded || t.incomeLpTokens || "LP"}</th>
+              <th>{t.incomePoolShareAssets || "Assets"}</th>
               <th>{t.incomeUsd || "USD"}</th>
             </tr>
           </thead>
@@ -401,10 +404,13 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
               </tr>
             ) : (
               visible.map((row) => {
-                const amount = Number(row.lpEarned ?? row.lpBalance ?? row.lpTokens);
                 const hold = row.kind === "hold" || allPairs;
+                const assetXio = Number(row.assetXio) || 0;
+                const assetQuote = Number(row.assetQuote) || 0;
+                const hasAssets = assetXio > 0 || assetQuote > 0;
+                const quoteLabel = row.quoteAsset || String(row.pair || "").split("/")[1] || "";
                 return (
-                  <tr key={`${row.date || "hold"}-${row.pair}-${amount}`}>
+                  <tr key={`${row.date || "hold"}-${row.pair}-${assetXio}-${assetQuote}-${row.usd || 0}`}>
                     <td>
                       {hold ? (
                         <span className="wallet-income-day">{row.pair}</span>
@@ -412,21 +418,25 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
                         <span className="wallet-income-day">{row.date}</span>
                       )}
                     </td>
-                    <td className={hold ? "is-lp" : "is-lp-add"}>
-                      {amount > 0 ? (
-                        hold ? (
-                          formatToken(amount, locale, 4)
-                        ) : (
-                          <>
-                            <span className="is-plus">+</span>
-                            <span className="is-add">{formatToken(amount, locale, 4)}</span>
-                          </>
-                        )
+                    <td className={hold ? "is-lp is-pool-share" : "is-lp-add is-pool-share"}>
+                      {hasAssets ? (
+                        <span className="wallet-income-assets">
+                          <b>
+                            {hold ? "" : <span className="is-plus">+</span>}
+                            <span className="wallet-asset-amt">{formatToken(assetXio, locale, 4)}</span>{" "}
+                            <span className="wallet-asset-ticker">XIO</span>
+                          </b>
+                          <i>
+                            {hold ? "" : <span className="is-plus">+</span>}
+                            <span className="wallet-asset-amt">{formatToken(assetQuote, locale, 4)}</span>{" "}
+                            <span className="wallet-asset-ticker">{quoteLabel}</span>
+                          </i>
+                        </span>
                       ) : (
                         ""
                       )}
                     </td>
-                    <td className="is-earn">{amount > 0 && Number(row.usd) > 0 ? formatUsd(row.usd, locale) : ""}</td>
+                    <td className="is-earn">{hasAssets && Number(row.usd) > 0 ? formatUsd(row.usd, locale) : ""}</td>
                   </tr>
                 );
               })
@@ -464,7 +474,7 @@ function WalletEarnCell({ label, rows, empty, className = "", usdOnly = false, t
       <div className="wallet-earn-grid">
         <p className="wallet-earn-row is-head">
           <span className="wallet-earn-range" aria-hidden="true" />
-          {usdOnly ? null : <span className="wallet-earn-col-lp">{t?.incomeLpTokens || "LP"}</span>}
+          {usdOnly ? null : <span className="wallet-earn-col-lp">{t?.incomeLpTokens || t?.incomePoolShareAssets || "Amount"}</span>}
           <span className="wallet-earn-col-usd">{t?.incomeUsd || "USD"}</span>
         </p>
         {rows.map((row) => (
