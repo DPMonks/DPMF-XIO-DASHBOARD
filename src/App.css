@@ -4308,84 +4308,64 @@ body {
 .wallet-income-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
 .wallet-income-table th,
 .wallet-income-table td {
-  padding: 4px 6px 4px 0;
+  padding: 4px 8px 4px 0;
   text-align: left;
+  vertical-align: top;
   white-space: nowrap;
+}
+
+.wallet-income-table th:nth-child(1),
+.wallet-income-table td:nth-child(1) {
+  width: 28%;
+}
+
+.wallet-income-table th:nth-child(2),
+.wallet-income-table td:nth-child(2),
+.wallet-income-table td.is-pool-share,
+.wallet-income-table td.is-lp,
+.wallet-income-table td.is-lp-add {
+  width: 50%;
+  text-align: left;
+  min-width: 0;
 }
 
 .wallet-income-table th:last-child,
 .wallet-income-table td:last-child {
+  width: 22%;
   text-align: right;
-  padding-right: 0;
+  padding-right: 4px;
 }
-
-.wallet-income-table th {
-  color: var(--dpmf-text-muted);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.wallet-income-table td {
-  color: var(--dpmf-text-main);
-}
-
-.wallet-income-table td.is-lp {
-  color: var(--dpmf-neon-violet);
-  font-weight: 700;
-}
-
-.wallet-income-table td.is-lp-add {
-  font-weight: 700;
-}
-
-.wallet-income-table .is-plus {
-  color: var(--dpmf-text-main);
-  margin-right: 2px;
-}
-
-.wallet-income-table .is-add {
-  color: var(--dpmf-neon-violet);
-}
-
-.wallet-income-day,
-.wallet-income-pair {
-  display: block;
-}
-
-.wallet-income-pair {
-  margin-top: 2px;
-  color: var(--dpmf-text-muted);
-  font-size: 10px;
-}
-
-
 
 .wallet-income-assets {
   display: grid;
-  grid-template-columns: max-content 11ch;
-  column-gap: 0.55rem;
-  row-gap: 0.15rem;
+  grid-template-columns: minmax(9ch, max-content) 5.5ch;
+  column-gap: 0.45rem;
+  row-gap: 0.12rem;
   align-items: baseline;
   justify-content: start;
   width: max-content;
   max-width: 100%;
-  line-height: 1.25;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
-  margin-right: auto;
+  line-height: 1.25;
+}
+
+.wallet-income-assets .wallet-income-line {
+  display: contents;
 }
 
 .wallet-income-assets .wallet-income-amt,
-.wallet-income-assets .wallet-asset-amt,
-.wallet-lp-earn .wallet-income-amt,
-.wallet-lp-earn .wallet-asset-amt {
+.wallet-income-assets .wallet-asset-amt {
   margin: 0;
+  padding: 0;
   font-weight: 700;
   font-style: normal;
   color: var(--dpmf-neon-violet, #c770ff);
@@ -4396,15 +4376,14 @@ body {
 }
 
 .wallet-income-assets .wallet-income-ticker,
-.wallet-income-assets .wallet-asset-ticker,
-.wallet-lp-earn .wallet-income-ticker,
-.wallet-lp-earn .wallet-asset-ticker {
+.wallet-income-assets .wallet-asset-ticker {
   display: inline-block;
   box-sizing: border-box;
-  width: 11ch;
-  min-width: 11ch;
-  max-width: 11ch;
+  width: 5.5ch;
+  min-width: 5.5ch;
+  max-width: 5.5ch;
   margin: 0;
+  padding: 0;
   font-style: normal;
   font-weight: 600;
   color: #fff;
@@ -4413,52 +4392,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.02em;
-}
-
-.wallet-income-assets .is-plus {
-  color: var(--dpmf-neon-violet, #c770ff);
-  font-weight: 700;
-  margin-right: 0.15em;
-}
-
-.wallet-income-assets .wallet-earn-usd,
-.wallet-lp-earn .wallet-earn-usd {
-  grid-column: 1 / -1;
-}
-
-.wallet-income-table td.is-pool-share {
-  white-space: normal;
-  width: auto;
-  min-width: 0;
-  vertical-align: middle;
   text-align: left;
-}
-.wallet-income-table th:nth-child(2),
-.wallet-income-table td.is-lp,
-.wallet-income-table td.is-lp-add {
-  width: auto;
-  min-width: 0;
-  text-align: left;
-}
-
-@media (max-width: 900px) {
-  .wallet-income-assets {
-    grid-template-columns: max-content 11ch;
-    column-gap: 0.5rem;
-    width: max-content;
-    max-width: 100%;
-    justify-content: start;
-  }
-}
-
-@media (max-width: 560px) {
-  .wallet-income-assets {
-    grid-template-columns: max-content 11ch;
-    column-gap: 0.4rem;
-    width: max-content;
-    max-width: 100%;
-    justify-content: start;
-  }
 }
 
 .wallet-income-table td.is-earn {
