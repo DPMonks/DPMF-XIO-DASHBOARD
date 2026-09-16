@@ -1,5 +1,5 @@
 import {catalogXioVolume24h, catalogXioVolume7d, projectXioMarketDaysToPair} from "../utils/lpVolume.js";
-import {detectQuoteUsd, normalizePriceBook} from "../utils/poolSplit.js";
+import {detectQuoteUsd, normalizePriceBook, STABLE_QUOTES} from "../utils/poolSplit.js";
 
 export const DEFAULT_INCOME_PAIR = "XIO/XRP";
 export const INCOME_ALL_PAIRS = "ALL";
@@ -154,6 +154,55 @@ function priceBookFromArgs(args = {}) {
     xrpUsd: pickUsd(fromPrices.xrpUsd, args.xrpUsd),
     RLUSD: pickUsd(fromPrices.RLUSD, fromPrices.quotes?.RLUSD, args.rlusdUsd) || 1,
   });
+}
+
+
+const STABLE_PEG_LO = 0.9;
+const STABLE_PEG_HI = 1.1;
+
+/** Live USD mark for an income asset (peg-sane stables; exchange marks otherwise). */
+export function saneAssetUsdMark(assetId, book = {}, pool = {}) {
+  const id = String(assetId || "").trim().toUpperCase();
+  const prices = normalizePriceBook(book);
+  if (!id) return 0;
+  if (id === "XIO") return pickUsd(prices.xioUsd, prices.recorded_price, pool?.xioUsd);
+  if (id === "XRP") return pickUsd(prices.xrpUsd, prices.XRP, prices.quotes?.XRP);
+  if (STABLE_QUOTES.has(id)) {
+    const mark = pickUsd(prices.quotes?.[id], prices[id], prices.RLUSD, prices.rlusdUsd);
+    if (mark >= STABLE_PEG_LO && mark <= STABLE_PEG_HI) return mark;
+    return 1;
+  }
+  return detectQuoteUsd({
+    quoteId: id,
+    pool: { ...pool, xioUsd: pickUsd(prices.xioUsd, prices.recorded_price, pool?.xioUsd) },
+    prices,
+    allowImplied: true,
+  });
+}
+
+/** Row fiat = sum(asset amount x live USD mark). Prefer this over LP-token USD when assets are shown. */
+export function feeRowAssetsUsd(row = {}, book = {}, pool = {}) {
+  const quoteId = String(
+    row.quoteAsset || pairQuote(row.pair || pool?.pool || pool?.pair, pool?.quote) || ""
+  )
+    .trim()
+    .toUpperCase();
+  const baseAmt = num(row.assetXio);
+  const quoteAmt = num(row.assetQuote);
+  if (!(baseAmt > 0) && !(quoteAmt > 0)) return 0;
+  const baseMark = saneAssetUsdMark("XIO", book, pool);
+  let quoteMark = saneAssetUsdMark(quoteId, book, pool);
+  if (STABLE_QUOTES.has(quoteId) && quoteAmt > 0) {
+    if (!(quoteMark >= STABLE_PEG_LO && quoteMark <= STABLE_PEG_HI)) quoteMark = 1;
+  }
+  return (baseAmt > 0 && baseMark > 0 ? baseAmt * baseMark : 0) + (quoteAmt > 0 && quoteMark > 0 ? quoteAmt * quoteMark : 0);
+}
+
+export function revalueFeeRowUsd(row, book = {}, pool = {}) {
+  if (!row) return row;
+  const fromAssets = feeRowAssetsUsd(row, book, pool);
+  if (fromAssets > 0) return { ...row, usd: fromAssets };
+  return row;
 }
 
 function preferPositive(...values) {
@@ -373,13 +422,14 @@ export function incomeHeldPoolRows({
         quoteAsset: pool.quote || pool.quoteName,
         pair,
       });
+      const fromAssets = feeRowAssetsUsd({ ...assets, pair }, book, pool);
       return {
         pair,
         date: "",
         lpBalance: lp,
         lpTokens: lp,
         ...assets,
-        usd: lpTokenUsd(lp, pool, book),
+        usd: fromAssets > 0 ? fromAssets : lpTokenUsd(lp, pool, book),
         kind: "hold",
       };
     })
@@ -482,26 +532,22 @@ export function lpTokenUsd(lpTokens, pool = {}, prices = {}) {
 }
 
 function feeIncomeUsd(feeXio, position, book) {
-  const reserveXio = num(position?.reserve_asset ?? position?.reserve_xio);
-  const reserveQuote = quoteReserveForUsd(
-    position?.reserve_currency ?? position?.reserve_quote,
-    position?.lp_supply
-  );
   const quoteId = pairQuote(position?.pool || position?.pool_name || position?.pair, position?.quote);
-  const xioUsd = num(book?.xioUsd ?? book?.recorded_price);
-  const quoteUsd = detectQuoteUsd({
-    quoteId,
-    pool: { ...position, xioUsd },
-    prices: book,
-    allowImplied: true,
+  const assets = poolShareAssets({
+    feeXio,
+    reserveXio: position?.reserve_asset ?? position?.reserve_xio,
+    reserveQuote: position?.reserve_currency ?? position?.reserve_quote,
+    quoteAsset: quoteId || position?.quote || position?.quoteName,
+    pair: position?.pool || position?.pool_name || position?.pair,
   });
-  if (quoteId === "XRP" || quoteId === "RLUSD") {
-    const halfXio = feeXio / 2;
-    const px = reserveXio > 0 ? reserveQuote / reserveXio : 0;
-    const quoteMark = quoteUsd || (quoteId === "RLUSD" ? 1 : 0);
-    return halfXio * xioUsd + (px > 0 ? halfXio * px * quoteMark : 0);
-  }
-  return feeXio * xioUsd;
+  const fromAssets = feeRowAssetsUsd(
+    { ...assets, pair: position?.pool || position?.pool_name || position?.pair },
+    book,
+    position
+  );
+  if (fromAssets > 0) return fromAssets;
+  const xioUsd = saneAssetUsdMark("XIO", book, position);
+  return feeXio > 0 && xioUsd > 0 ? feeXio * xioUsd : 0;
 }
 
 function lpEquivalent(feeXio, row) {
@@ -937,30 +983,34 @@ export function feeXioFromLpTokens(lpTokens, pool = {}) {
 }
 
 /** Fill asset amounts on fee rows that still only have legacy LP fields. */
-export function enrichFeeRowAssets(row, pool = {}) {
+export function enrichFeeRowAssets(row, pool = {}, book = null) {
   if (!row) return row;
   const hasAssets = num(row.assetXio) > 0 || num(row.assetQuote) > 0;
+  let next = row;
   if (hasAssets) {
-    return {
+    next = {
       ...row,
       quoteAsset: row.quoteAsset || pool.quote || String(row.pair || "").split("/")[1] || "",
     };
+  } else {
+    const tokens = num(row.lpTokens ?? row.lpEarned);
+    const feeXio = feeXioFromLpTokens(tokens, pool);
+    if (!(feeXio > 0)) return row;
+    const assets = poolShareAssets({
+      feeXio,
+      reserveXio: pool.reserve_asset ?? pool.reserve_xio,
+      reserveQuote: pool.reserve_currency ?? pool.reserve_quote,
+      quoteAsset: pool.quote || pool.quoteName || row.quoteAsset,
+      pair: row.pair || pool.pair || pool.pool,
+    });
+    next = {
+      ...row,
+      ...assets,
+      quoteAsset: assets.quoteAsset || row.quoteAsset || pool.quote || "",
+    };
   }
-  const tokens = num(row.lpTokens ?? row.lpEarned);
-  const feeXio = feeXioFromLpTokens(tokens, pool);
-  if (!(feeXio > 0)) return row;
-  const assets = poolShareAssets({
-    feeXio,
-    reserveXio: pool.reserve_asset ?? pool.reserve_xio,
-    reserveQuote: pool.reserve_currency ?? pool.reserve_quote,
-    quoteAsset: pool.quote || pool.quoteName || row.quoteAsset,
-    pair: row.pair || pool.pair || pool.pool,
-  });
-  return {
-    ...row,
-    ...assets,
-    quoteAsset: assets.quoteAsset || row.quoteAsset || pool.quote || "",
-  };
+  if (book) return revalueFeeRowUsd(next, book, pool);
+  return next;
 }
 
 export function mergeFrozenFees(...lists) {
@@ -985,12 +1035,14 @@ export function mergeFrozenFees(...lists) {
     };
     const current = map.get(key);
     if (current) {
-      // Keep frozen USD/LP from the first row, but backfill missing assets from later lists
-      // (legacy localStorage rows predate the LP-to-assets display change).
+      // Backfill missing assets from later lists (legacy localStorage rows predate assets).
       if (!(num(current.assetXio) > 0) && incoming.assetXio > 0) current.assetXio = incoming.assetXio;
       if (!(num(current.assetQuote) > 0) && incoming.assetQuote > 0) current.assetQuote = incoming.assetQuote;
       if (!current.quoteAsset && incoming.quoteAsset) current.quoteAsset = incoming.quoteAsset;
-      if (!(Number(current.usd) > 0) && incoming.usd > 0) current.usd = incoming.usd;
+      // Prefer a positive incoming USD when assets exist so corrected marks can replace frozen junk.
+      const hasAssets = num(current.assetXio) > 0 || num(current.assetQuote) > 0;
+      if (hasAssets && incoming.usd > 0) current.usd = incoming.usd;
+      else if (!(Number(current.usd) > 0) && incoming.usd > 0) current.usd = incoming.usd;
       continue;
     }
     map.set(key, incoming);
@@ -1068,8 +1120,11 @@ export function incomeRowsForPair({
     )
   );
   const pool = position || poolForIncomePair(want, positions, pools);
+  const book = priceBookFromArgs({ xioUsd, xrpUsd, rlusdUsd, prices });
+  const dayBooks =
+    (prices?.dailyPrices && typeof prices.dailyPrices === "object" && prices.dailyPrices) || {};
   return merged
-    .map((row) => enrichFeeRowAssets(row, pool))
+    .map((row) => enrichFeeRowAssets(row, pool, priceBookOnDay(row.date, dayBooks, book)))
     .filter((row) => {
       if (row.pair !== want || !(num(row.lpTokens) > 0)) return false;
       // Omit blank-looking days: need readable assets and/or USD.

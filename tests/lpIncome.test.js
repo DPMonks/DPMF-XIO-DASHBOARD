@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {lpFeeEarnings} from "../src/wallet/composeWallet.js";
-import {INCOME_ALL_PAIRS, HISTORICAL_INCOME_DAYS, dailyHeldLpBalances, dailyLpIncomeTotals, earliestHeldDay, fillContinuousVolumeDays, incomePairBalance, catalogIncomePairs, incomePairChoices, incomePairTotals, incomeHeldPoolRows, poolShareAssets, enrichFeeRowAssets, feeXioFromLpTokens, mergeFrozenFees, incomeRowsForPair, isXioAmmPair, lpDepositIncomeRows, lpFeeIncomeRows, lpIncomeCsv, lpTokenUsd, priceBookOnDay, mergeLpIncomeRows, mergeRecordedLpIncome, pageLpIncome, poolForIncomePair, readRecordedLpIncome, writeRecordedLpIncome} from "../src/wallet/lpIncome.js";
+import {INCOME_ALL_PAIRS, HISTORICAL_INCOME_DAYS, dailyHeldLpBalances, dailyLpIncomeTotals, earliestHeldDay, fillContinuousVolumeDays, incomePairBalance, catalogIncomePairs, incomePairChoices, incomePairTotals, incomeHeldPoolRows, poolShareAssets, enrichFeeRowAssets, feeRowAssetsUsd, saneAssetUsdMark, feeXioFromLpTokens, mergeFrozenFees, incomeRowsForPair, isXioAmmPair, lpDepositIncomeRows, lpFeeIncomeRows, lpIncomeCsv, lpTokenUsd, priceBookOnDay, mergeLpIncomeRows, mergeRecordedLpIncome, pageLpIncome, poolForIncomePair, readRecordedLpIncome, writeRecordedLpIncome} from "../src/wallet/lpIncome.js";
 import {composeWalletSnapshot} from "../src/wallet/composeWallet.js";
 import {XIO_XRP_AMM, XIO_XRP_LP_HEX} from "../src/constants/ledger.js";
 
@@ -481,9 +481,11 @@ test("recorded fee USD stays frozen when the live mark moves", () => {
   assert.ok(older);
   assert.equal(older.kind, "fee");
   assert.equal(older.lpEarned, 2);
-  assert.equal(older.usd, 7.25);
   assert.ok(older.assetXio > 0);
   assert.ok(older.assetQuote > 0);
+  // Frozen 7.25 is replaced by assets x day marks when available.
+  assert.notEqual(older.usd, 7.25);
+  assert.ok(older.usd > 0);
 });
 
 test("mergeFrozenFees backfills assets onto legacy LP-only fee rows", () => {
@@ -492,7 +494,7 @@ test("mergeFrozenFees backfills assets onto legacy LP-only fee rows", () => {
     [{ date: "2026-09-01", pair: "XIO/XRP", lpTokens: 1.5, usd: 9, assetXio: 12, assetQuote: 0.003, quoteAsset: "XRP", kind: "fee" }]
   );
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].usd, 0.42);
+  assert.equal(merged[0].usd, 9);
   assert.equal(merged[0].assetXio, 12);
   assert.equal(merged[0].assetQuote, 0.003);
   assert.equal(merged[0].quoteAsset, "XRP");
@@ -543,7 +545,7 @@ test("incomeRowsForPair fills assets for any held wallet using recorded legacy r
   assert.ok(day);
   assert.ok(day.assetXio > 0);
   assert.ok(day.assetQuote > 0);
-  assert.equal(day.usd, 1.25);
+  assert.ok(Math.abs(day.usd - (50 * 0.00004 + 0.1 * 2)) < 1e-9);
   const prior = rows.find((row) => row.date === "2026-09-07");
   assert.ok(prior);
   assert.ok(prior.assetXio > 0);
@@ -897,4 +899,24 @@ test("income pair choices keep only exchange-catalog pools the wallet holds", ()
     ],
   });
   assert.deepEqual(pairs, ["ALL", "XIO/XRP", "XIO/XDX"]);
+});
+
+
+test("fee row USD is assets x marks; RLUSD peg overrides insane quote marks", () => {
+  const row = {
+    date: "2026-09-15",
+    pair: "XIO/RLUSD",
+    assetXio: 6754.4592,
+    assetQuote: 0.3767,
+    quoteAsset: "RLUSD",
+    lpTokens: 1,
+    kind: "fee",
+    usd: 0.0753,
+  };
+  const book = { xioUsd: 0.0000474, xrpUsd: 2.8, RLUSD: 0.2, quotes: { RLUSD: 0.2 } };
+  const usd = feeRowAssetsUsd(row, book, { pool: "XIO/RLUSD", quote: "RLUSD" });
+  const expected = 6754.4592 * 0.0000474 + 0.3767 * 1;
+  assert.ok(Math.abs(usd - expected) < 1e-6);
+  assert.ok(usd > row.assetQuote);
+  assert.ok(Math.abs(saneAssetUsdMark("RLUSD", book) - 1) < 1e-12);
 });
