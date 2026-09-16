@@ -1,6 +1,15 @@
 {
   "headers": [
     {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -30,6 +39,24 @@
         {
           "key": "X-Permitted-Cross-Domain-Policies",
           "value": "none"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
         }
       ]
     }
@@ -99,7 +126,7 @@
       "destination": "/api/index?path=$1"
     },
     {
-      "source": "/((?!api/|favicon\\.png|apple-touch-icon\\.png|og-image\\.png|og-image\\.jpg|icons\\.svg|robots\\.txt).*)",
+      "source": "/((?!api/|assets/|favicon\\.png|apple-touch-icon\\.png|og-image\\.png|og-image\\.jpg|icons\\.svg|robots\\.txt).*)",
       "destination": "/index.html"
     }
   ]
