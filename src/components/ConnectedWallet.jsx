@@ -145,16 +145,16 @@ function PoolWindowValue({ pool, window, locale, empty }) {
   return (
     <span className="wallet-lp-earn wallet-income-assets">
       {hasXio ? (
-        <b>
-          <span className="wallet-asset-amt">{formatToken(xio, locale, 2)}</span>{" "}
-          <span className="wallet-asset-ticker">XIO</span>
-        </b>
+        <>
+          <b className="wallet-income-amt wallet-asset-amt">{formatToken(xio, locale, 2)}</b>
+          <span className="wallet-income-ticker wallet-asset-ticker">XIO</span>
+        </>
       ) : null}
       {hasQuote ? (
-        <b>
-          <span className="wallet-asset-amt">{formatToken(quote, locale, 4)}</span>{" "}
-          <span className="wallet-asset-ticker">{quoteLabel}</span>
-        </b>
+        <>
+          <b className="wallet-income-amt wallet-asset-amt">{formatToken(quote, locale, 4)}</b>
+          <span className="wallet-income-ticker wallet-asset-ticker">{quoteLabel}</span>
+        </>
       ) : null}
       {Number(usd) > 0 ? <i className="wallet-earn-usd">{formatUsd(usd, locale)}</i> : null}
     </span>
@@ -421,16 +421,16 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
                     <td className={hold ? "is-lp is-pool-share" : "is-lp-add is-pool-share"}>
                       {hasAssets ? (
                         <span className="wallet-income-assets">
-                          <b>
-                            {hold ? "" : <span className="is-plus">+</span>}
-                            <span className="wallet-asset-amt">{formatToken(assetXio, locale, 4)}</span>{" "}
-                            <span className="wallet-asset-ticker">XIO</span>
+                          <b className="wallet-income-amt wallet-asset-amt">
+                            {hold ? null : <span className="is-plus">+</span>}
+                            {formatToken(assetXio, locale, 4)}
                           </b>
-                          <i>
-                            {hold ? "" : <span className="is-plus">+</span>}
-                            <span className="wallet-asset-amt">{formatToken(assetQuote, locale, 4)}</span>{" "}
-                            <span className="wallet-asset-ticker">{quoteLabel}</span>
-                          </i>
+                          <span className="wallet-income-ticker wallet-asset-ticker">XIO</span>
+                          <b className="wallet-income-amt wallet-asset-amt">
+                            {hold ? null : <span className="is-plus">+</span>}
+                            {formatToken(assetQuote, locale, 4)}
+                          </b>
+                          <span className="wallet-income-ticker wallet-asset-ticker">{quoteLabel}</span>
                         </span>
                       ) : (
                         ""
