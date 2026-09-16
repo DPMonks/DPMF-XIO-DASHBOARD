@@ -1,5 +1,6 @@
 import {api, INDEXER_ORIGIN} from "../api";
-import {pairFromRow, XIO_RLUSD_LP_XRPL_TO_MD5, XIO_XRPL_TO_MD5, XIO_XRP_LP_XRPL_TO_MD5} from "../constants/ledger";
+import {pairFromRow, XIO_RLUSD_LP_XRPL_TO_MD5, XIO_XRPL_TO_MD5, XIO_XDX_LP_XRPL_TO_MD5, XIO_XRP_LP_XRPL_TO_MD5} from "../constants/ledger";
+import {assessLpOwnersPayload} from "../utils/lpOwnersSanity";
 import {keepLastGoodOwners} from "../todayOwners";
 import {carryActivityMetrics, issuedActivitySeries, mergeActivityRows, needsFullIssuanceHistory, rowsFromXrplToGraph, xrplToHolderGraphUrl} from "../activityHistory";
 import {composeTokenDetails} from "../tokenDetails";
@@ -141,7 +142,7 @@ async function paginate(fetchPage, pageSize = PAGE_SIZE, onPage, maxRows = MAX_R
     }
     onPage?.(all);
     if (page.length < pageSize) break;
-    // Upstream ignored offset (same page again) — stop instead of twinning rows.
+    // Upstream ignored offset (same page again) - stop instead of twinning rows.
     if (added === 0) break;
     offset += page.length;
     await sleep(600);
@@ -608,11 +609,16 @@ export async function getTopHolders(onPage) {
 }
 
 async function fetchXrplToLpOwners() {
+  const specs = [
+    ["XIO/XRP", XIO_XRP_LP_XRPL_TO_MD5],
+    ["XIO/XDX", XIO_XDX_LP_XRPL_TO_MD5],
+    ["XIO/RLUSD", XIO_RLUSD_LP_XRPL_TO_MD5],
+  ].filter(([, md5]) => Boolean(String(md5 || "").trim()));
+  if (!specs.length) {
+    return { holders: [], rows: [], present: false, catching_up: true, source: "xrpl.to" };
+  }
   const pages = await Promise.all(
-    [
-      ["XIO/XRP", XIO_XRP_LP_XRPL_TO_MD5],
-      ["XIO/RLUSD", XIO_RLUSD_LP_XRPL_TO_MD5],
-    ].map(async ([pool, md5]) => {
+    specs.map(async ([pool, md5]) => {
       const response = await fetch(`https://api.xrpl.to/v1/holders/list/${md5}?limit=200&offset=0`, {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(6000),
@@ -626,10 +632,30 @@ async function fetchXrplToLpOwners() {
       }));
     })
   );
-  return { holders: pages.flat(), rows: pages.flat(), present: true, catching_up: false, source: "xrpl.to" };
+  const flat = pages.flat();
+  return {
+    holders: flat,
+    rows: flat,
+    present: flat.length > 0,
+    catching_up: flat.length === 0,
+    source: "xrpl.to",
+  };
+}
+
+const LP_SANITY_SUPPLY = { "XIO/XRP": 50_000, "XIO/XDX": 500_000 };
+
+function tokenSampleSync() {
+  const cached = lastOwnerLists.get("holders");
+  return Array.isArray(cached?.rows) ? cached.rows : [];
+}
+
+function lpPayloadTrusted(rows) {
+  return assessLpOwnersPayload(rows, tokenSampleSync(), { lpSupplyByPool: LP_SANITY_SUPPLY }).ok;
 }
 
 export async function getTopLp(onPage) {
+  // Do not paint indexer pages until sanity passes: empty MD5 / mislabeled token holders
+  // used to clone the XIO rich list into "LP Owners".
   const rows = await loadPagedOwners({
     cacheKey: "lpHolders",
     requestFirst: () => api.topLp(FIRST_LP, 0, { snapshot: "today", pool: "all" }),
@@ -639,19 +665,38 @@ export async function getTopLp(onPage) {
     requestLastRest: (limit, offset) =>
       api.topLp(limit, FIRST_LP + offset, { snapshot: "latest", pool: "all" }),
     finish: finishLp,
-    onPage,
+    onPage: undefined,
     firstSize: FIRST_LP,
     restPageSize: 50,
   });
-  if (rows.length) return rows;
+
+  if (rows.length && lpPayloadTrusted(rows)) {
+    onPage?.(rows, lastOwnerLists.get("lpHolders")?.freshness || null);
+    return rows;
+  }
+
   try {
     const payload = await fetchXrplToLpOwners();
     const mapped = finishLp(asArray(payload));
-    if (mapped.length) onPage?.(mapped, pickFreshness(payload, mapped));
-    return mapped;
+    if (mapped.length && lpPayloadTrusted(mapped)) {
+      const freshness = pickFreshness(payload, mapped);
+      lastOwnerLists.set("lpHolders", { rows: mapped, freshness });
+      sessionWrite("lpHolders", { rows: mapped, freshness });
+      onPage?.(mapped, freshness);
+      return mapped;
+    }
   } catch {
-    return rows;
+    // fall through
   }
+
+  const empty = {
+    rows: [],
+    freshness: { present: false, catching_up: true, source: "rejected-token-clone" },
+  };
+  lastOwnerLists.set("lpHolders", empty);
+  sessionWrite("lpHolders", empty);
+  onPage?.([], empty.freshness);
+  return [];
 }
 
 const XRPL_TO_TOKEN_TTL_MS = 60_000;

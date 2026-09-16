@@ -1,4 +1,4 @@
-import {POOLS, XIO_HEX, XIO_RLUSD_LP_XRPL_TO_MD5, XIO_XRPL_TO_MD5, XIO_XRP_LP_XRPL_TO_MD5, XRP_XRPL_TO_MD5, xrplToMd5ForLpPool} from "../src/constants/ledger.js";
+import {POOLS, XIO_HEX, XIO_RLUSD_LP_XRPL_TO_MD5, XIO_XRPL_TO_MD5, XIO_XDX_LP_XRPL_TO_MD5, XIO_XRP_LP_XRPL_TO_MD5, XRP_XRPL_TO_MD5, xrplToMd5ForLpPool} from "../src/constants/ledger.js";
 import {rowsFromXrplToGraph} from "../src/activityHistory.js";
 import {pairFromTradeLegs} from "../src/utils/lpVolume.js";
 import {parseXrplToToken, XRPL_TO_TOKEN_URL} from "../src/utils/xrplToToken.js";
@@ -13,6 +13,13 @@ export const FREE_API_HEADERS = {
 
 function holdersUrl(md5) {
   return `https://api.xrpl.to/v1/holders/list/${md5 || XIO_XRPL_TO_MD5}`;
+}
+
+/** LP holder lists must never fall back to the XIO token MD5. */
+function lpHoldersUrl(md5) {
+  const id = String(md5 || "").trim();
+  if (!id || id === XIO_XRPL_TO_MD5) return "";
+  return `https://api.xrpl.to/v1/holders/list/${id}`;
 }
 
 function graphUrl(md5) {
@@ -235,7 +242,20 @@ export async function loadXrplToLpOwners(options = {}) {
     };
   }
   const md5 = options.md5 || xrplToMd5ForLpPool(pair);
-  const payload = await jsonFetch(`${holdersUrl(md5)}?limit=${limit}&offset=${offset}`, options);
+  const url = lpHoldersUrl(md5);
+  if (!url) {
+    return {
+      holders: [],
+      rows: [],
+      count: 0,
+      as_of: new Date().toISOString(),
+      source: "xrpl.to",
+      present: false,
+      catching_up: true,
+      pool: pair,
+    };
+  }
+  const payload = await jsonFetch(`${url}?limit=${limit}&offset=${offset}`, options);
   return lpOwnersFromXrplTo(payload, { offset, pool: pair });
 }
 
@@ -250,9 +270,10 @@ export async function loadXrplToLpChart(options = {}) {
 
 export async function loadXrplToLpCounts(options = {}) {
   const pair = normalizeLpPool(options.pool || options.pair || "all");
-  const md5s = pair
+  const md5s = (pair
     ? [xrplToMd5ForLpPool(pair)]
-    : [XIO_XRP_LP_XRPL_TO_MD5, XIO_RLUSD_LP_XRPL_TO_MD5];
+    : [XIO_XRP_LP_XRPL_TO_MD5, XIO_XDX_LP_XRPL_TO_MD5, XIO_RLUSD_LP_XRPL_TO_MD5]
+  ).filter((md5) => Boolean(String(md5 || "").trim()) && md5 !== XIO_XRPL_TO_MD5);
   const cards = await Promise.all(
     md5s.map((md5) => loadXrplToTokenCard(md5, options).catch(() => ({ holders: 0, trustlines: 0 })))
   );
@@ -284,6 +305,7 @@ export async function loadXrplToRank(address, options = {}) {
 export {
   XRPL_TO_TOKEN_URL,
   XIO_XRP_LP_XRPL_TO_MD5,
+  XIO_XDX_LP_XRPL_TO_MD5,
   XIO_RLUSD_LP_XRPL_TO_MD5,
   holdersUrl as HOLDERS_URL,
   graphUrl as GRAPH_URL,

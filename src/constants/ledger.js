@@ -18,9 +18,10 @@ export function issuerLockedFromIssued(issued, total = XIO_TOTAL_SUPPLY) {
 // XIO/XRP AMM (live)
 export const XIO_XRP_AMM = "rPYfrbCvJGGEs9ddUtRiq58kCJBw9hoGij";
 export const XIO_XRP_LP_HEX = "030AE7B410D0ECF1DEC886D216866C31C898C875";
-export const XIO_XRP_LP_XRPL_TO_MD5 = "";
+/** xrpl.to md5(issuer + "_" + lpCurrencyHex); LP XRP/XIO. */
+export const XIO_XRP_LP_XRPL_TO_MD5 = "4816f119c6fb9e2edf665adc0136deee";
 
-// tfSetNoRipple — standard IOU trustline so the line cannot ripple.
+// tfSetNoRipple - standard IOU trustline so the line cannot ripple.
 export const TF_SET_NO_RIPPLE = 131072;
 export const XIO_TRUST_LIMIT = "100000000000000000"; // big limit; never 0
 
@@ -41,11 +42,23 @@ export function xioTrustSetTxjson(account) {
 
 export const RLUSD_ISSUER = "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De";
 export const RLUSD_HEX = "524C555344000000000000000000000000000000";
-// No live XIO/RLUSD AMM yet — keep slots empty so UI can hide/disable.
+// No live XIO/RLUSD AMM yet - keep slots empty so UI can hide/disable.
 export const XIO_RLUSD_AMM = "";
 export const XIO_RLUSD_LP_HEX = "";
 export const XIO_RLUSD_LP_XRPL_TO_MD5 = "";
 export const XRP_XRPL_TO_MD5 = "84e5efeb89c4eae8f68188982dc290d8";
+
+
+// Quote asset XDX (sibling DPMF token - not primary)
+export const XDX_ISSUER = "rMJAXYsbNzhwp7FfYnAsYP5ty3R9XnurPo";
+export const XDX_CURRENCY = "XDX";
+export const XDX_HEX = "5844580000000000000000000000000000000000";
+
+// XIO/XDX AMM (same pool formerly labeled XDX/XIO on the XDX exchange)
+export const XIO_XDX_AMM = "rDJXzsZGACeHGJQYfaudsYshaC5zJxqsHr";
+export const XIO_XDX_LP_HEX = "03E7A465A6E95CDA21E1110056AA51A71FA55CB9";
+/** xrpl.to md5(issuer + "_" + lpCurrencyHex); LP XDX/XIO. */
+export const XIO_XDX_LP_XRPL_TO_MD5 = "06cfb2c7f7b73a31affc7f93dfd747c2";
 
 export function xrplToMd5ForLpPool(pool) {
   const name = String(pool || "")
@@ -55,21 +68,19 @@ export function xrplToMd5ForLpPool(pool) {
   if (name.includes("RLUSD") || (XIO_RLUSD_AMM && name === XIO_RLUSD_AMM.toUpperCase())) {
     return XIO_RLUSD_LP_XRPL_TO_MD5;
   }
+  if (
+    name.includes("XDX") ||
+    (XIO_XDX_AMM && name === XIO_XDX_AMM.toUpperCase()) ||
+    name.includes(XIO_XDX_LP_HEX)
+  ) {
+    return XIO_XDX_LP_XRPL_TO_MD5;
+  }
   return XIO_XRP_LP_XRPL_TO_MD5;
 }
 
-// Quote asset XDX (sibling DPMF token — not primary)
-export const XDX_ISSUER = "rMJAXYsbNzhwp7FfYnAsYP5ty3R9XnurPo";
-export const XDX_CURRENCY = "XDX";
-export const XDX_HEX = "5844580000000000000000000000000000000000";
-
-// XIO/XDX AMM (same pool formerly labeled XDX/XIO on the XDX exchange)
-export const XIO_XDX_AMM = "rDJXzsZGACeHGJQYfaudsYshaC5zJxqsHr";
-export const XIO_XDX_LP_HEX = "03E7A465A6E95CDA21E1110056AA51A71FA55CB9";
-
 export const XSQUAD_ISSUER = "roBYiFtZsTRpWEUw6TtpUCwZCfjcQeRBg";
 export const XSQUAD_HEX = "5853515541440000000000000000000000000000";
-// No live XIO/XSQUAD AMM discovered — leave empty.
+// No live XIO/XSQUAD AMM discovered - leave empty.
 export const XIO_XSQUAD_AMM = "";
 export const XIO_XSQUAD_LP_HEX = "";
 
@@ -152,7 +163,7 @@ export function pairFromRow(row = {}) {
   const amm = row.amm_account || row.amm;
   if (amm && String(amm).length >= 8) {
     const text = String(amm);
-    return `XIO/${text.slice(0, 4)}…${text.slice(-4)}`;
+    return `XIO/${text.slice(0, 4)}...${text.slice(-4)}`;
   }
   const lpHex = String(row.lp_currency || row.lp_currency_hex || "").replace(/^0x/i, "").toUpperCase();
   if (
