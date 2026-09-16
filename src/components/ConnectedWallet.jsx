@@ -18,7 +18,7 @@ function XrpColumn({ label, tone, percent, value, locale, empty }) {
         <span className={tone} style={{ height: `${empty ? 0 : percent}%` }} />
       </div>
       <small>{label}</small>
-      <b>{empty ? "—" : formatToken(value, locale, 4)}</b>
+      <b>{empty ? "-" : formatToken(value, locale, 4)}</b>
     </div>
   );
 }
@@ -68,13 +68,13 @@ function XrpBalanceBars({ xrp, locale, t, empty }) {
 
 function XioBalancePanel({ xio, locale, t, empty }) {
   const rows = [
-    { id: "xio", label: t.xio, value: empty ? "—" : formatToken(xio?.xio, locale, 2) },
-    { id: "xrp", label: t.xrp, value: empty ? "—" : formatToken(xio?.xrp, locale, 4) },
-    { id: "rlusd", label: t.rlusd || "RLUSD", value: empty ? "—" : formatToken(xio?.rlusd, locale, 2) },
-    { id: "usd", label: t.usd, value: empty ? "—" : formatUsd(xio.usd, locale) },
-    { id: "gbp", label: t.gbp, value: empty ? "—" : formatGbp(xio.gbp, locale) },
-    { id: "eur", label: t.eur, value: empty ? "—" : formatEur(xio.eur, locale) },
-    { id: "jpy", label: t.jpy, value: empty ? "—" : formatJpy(xio.jpy, locale) },
+    { id: "xio", label: t.xio, value: empty ? "-" : formatToken(xio?.xio, locale, 2) },
+    { id: "xrp", label: t.xrp, value: empty ? "-" : formatToken(xio?.xrp, locale, 4) },
+    { id: "rlusd", label: t.rlusd || "RLUSD", value: empty ? "-" : formatToken(xio?.rlusd, locale, 2) },
+    { id: "usd", label: t.usd, value: empty ? "-" : formatUsd(xio.usd, locale) },
+    { id: "gbp", label: t.gbp, value: empty ? "-" : formatGbp(xio.gbp, locale) },
+    { id: "eur", label: t.eur, value: empty ? "-" : formatEur(xio.eur, locale) },
+    { id: "jpy", label: t.jpy, value: empty ? "-" : formatJpy(xio.jpy, locale) },
   ];
   return (
     <div className={`wallet-panel${empty ? " is-empty" : " is-filled"}`}>
@@ -103,28 +103,28 @@ function SupplyShareBars({ supply, locale, t, empty }) {
       <p className="wallet-panel-title is-center">{t.supplyShare}</p>
       <div className="wallet-micro">
         <span>{t.circulating}</span>
-        <b>{empty ? "—" : formatSharePercent(circ, locale)}</b>
+        <b>{empty ? "-" : formatSharePercent(circ, locale)}</b>
         <span className="wallet-micro-track">
           <i style={{ width: `${circWidth}%` }} />
         </span>
       </div>
       <div className="wallet-micro">
         <span>{t.xioSupplyShare}</span>
-        <b>{empty ? "—" : formatSupplySharePercent(supplyPct, locale)}</b>
+        <b>{empty ? "-" : formatSupplySharePercent(supplyPct, locale)}</b>
         <span className="wallet-micro-track">
           <i className="is-amm" style={{ width: `${supplyWidth}%` }} />
         </span>
       </div>
       <div className="wallet-micro is-pending">
         <span>{t.borrowed}</span>
-        <b>—</b>
+        <b>-</b>
         <span className="wallet-micro-track">
           <i style={{ width: 0 }} />
         </span>
       </div>
       <div className="wallet-micro is-pending">
         <span>{t.lending}</span>
-        <b>—</b>
+        <b>-</b>
         <span className="wallet-micro-track">
           <i style={{ width: 0 }} />
         </span>
@@ -134,14 +134,14 @@ function SupplyShareBars({ supply, locale, t, empty }) {
 }
 
 function PoolWindowValue({ pool, window, locale, empty }) {
-  if (empty || !pool) return "—";
+  if (empty || !pool) return "-";
   const xio = window === "7d" ? pool.xio7d : pool.xio24h;
   const quote = window === "7d" ? pool.quote7d : pool.quote24h;
   const usd = window === "7d" ? pool.usd7d : pool.usd24h;
   const quoteLabel = pool.quote || "";
   const hasXio = Number(xio) > 0;
   const hasQuote = Number(quote) > 0;
-  if (!hasXio && !hasQuote && !(Number(usd) > 0)) return "—";
+  if (!hasXio && !hasQuote && !(Number(usd) > 0)) return "-";
   return (
     <span className="wallet-lp-earn wallet-income-assets">
       {hasXio ? (
@@ -173,7 +173,7 @@ function LpInfographic({ position, earn, locale, t, empty }) {
         <span className="wallet-micro-track">
           <i style={{ width: `${shareWidth}%` }} />
         </span>
-        <b>{empty ? "—" : formatSharePercent(share, locale)}</b>
+        <b>{empty ? "-" : formatSharePercent(share, locale)}</b>
       </div>
       <div className="wallet-lp-comp" aria-hidden="true">
         <span className="is-xio" style={{ width: `${empty ? 0 : Number(xioComp) || 0}%` }} />
@@ -182,17 +182,17 @@ function LpInfographic({ position, earn, locale, t, empty }) {
       <dl className="wallet-mini-list is-wide">
         <div>
           <dt>{t.lp}</dt>
-          <dd>{empty ? "—" : formatToken(position?.lp_balance, locale, 2)}</dd>
+          <dd>{empty ? "-" : formatToken(position?.lp_balance, locale, 2)}</dd>
         </div>
         <div>
           <dt>{t.withdrawXio}</dt>
-          <dd>{empty ? "—" : formatToken(position?.withdraw_estimate_xio, locale, 2)}</dd>
+          <dd>{empty ? "-" : formatToken(position?.withdraw_estimate_xio, locale, 2)}</dd>
         </div>
         <div>
           <dt>{withdrawQuoteLabel(position?.quote, t.withdrawQuote)}</dt>
           <dd>
             {empty
-              ? "—"
+              ? "-"
               : `${formatToken(position?.withdraw_estimate_quote, locale, 4)} ${position?.quote || ""}`.trim()}
           </dd>
         </div>
@@ -363,7 +363,7 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
           </label>
           <div className="wallet-income-totals">
             <p className="wallet-income-total is-usd" aria-label={t.incomeUsd || "USD"}>
-              {empty || !(totals.usd > 0) ? "—" : formatUsd(totals.usd, locale)}
+              {empty || !(totals.usd > 0) ? "-" : formatUsd(totals.usd, locale)}
             </p>
           </div>
           <button
@@ -399,7 +399,7 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
             {empty || !visible.length ? (
               <tr>
                 <td colSpan={3}>
-                  {empty ? "—" : allPairs ? t.noLpPositions || "No LP positions" : t.noLpIncome || "No LP earnings yet"}
+                  {empty ? "-" : allPairs ? t.noLpPositions || "No LP positions" : t.noLpIncome || "No LP earnings yet"}
                 </td>
               </tr>
             ) : (
@@ -408,6 +408,7 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
                 const assetXio = Number(row.assetXio) || 0;
                 const assetQuote = Number(row.assetQuote) || 0;
                 const hasAssets = assetXio > 0 || assetQuote > 0;
+                const usdValue = Number(row.usd) || 0;
                 const quoteLabel = row.quoteAsset || String(row.pair || "").split("/")[1] || "";
                 return (
                   <tr key={`${row.date || "hold"}-${row.pair}-${assetXio}-${assetQuote}-${row.usd || 0}`}>
@@ -433,10 +434,15 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
                           <span className="wallet-income-ticker wallet-asset-ticker">{quoteLabel}</span>
                         </span>
                       ) : (
-                        ""
+                        <span className="wallet-income-assets">
+                          <b className="wallet-income-amt wallet-asset-amt">0</b>
+                          <span className="wallet-income-ticker wallet-asset-ticker">XIO</span>
+                          <b className="wallet-income-amt wallet-asset-amt">0</b>
+                          <span className="wallet-income-ticker wallet-asset-ticker">{quoteLabel || "QUOTE"}</span>
+                        </span>
                       )}
                     </td>
-                    <td className="is-earn">{hasAssets && Number(row.usd) > 0 ? formatUsd(row.usd, locale) : ""}</td>
+                    <td className="is-earn">{usdValue > 0 ? formatUsd(usdValue, locale) : ""}</td>
                   </tr>
                 );
               })
@@ -454,7 +460,7 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
 }
 
 function earnText(value, format, empty) {
-  if (empty || value == null || !Number.isFinite(Number(value))) return "—";
+  if (empty || value == null || !Number.isFinite(Number(value))) return "-";
   return format(Number(value));
 }
 
@@ -637,20 +643,20 @@ export default function ConnectedWallet() {
           <div className="wallet-hero-copy">
             <p className="wallet-hero-label">{t.xioValue}</p>
             <p className={`wallet-hero-qty${empty ? " is-empty" : " is-filled"}`}>
-              {empty ? "—" : `${formatToken(view.xio.xio, locale, 2)} ${t.xio}`}
+              {empty ? "-" : `${formatToken(view.xio.xio, locale, 2)} ${t.xio}`}
             </p>
             <p className={`wallet-hero-usd${empty ? " is-empty" : " is-filled"}`}>
-              {empty ? "—" : formatUsd(view.xio.usd, locale)}
+              {empty ? "-" : formatUsd(view.xio.usd, locale)}
             </p>
             <div className="wallet-hero-fx">
               <p className={`wallet-hero-gbp${empty ? " is-empty" : " is-filled"}`}>
-                {empty ? "—" : formatGbp(view.xio.gbp, locale)}
+                {empty ? "-" : formatGbp(view.xio.gbp, locale)}
               </p>
               <p className={`wallet-hero-eur${empty ? " is-empty" : " is-filled"}`}>
-                {empty ? "—" : formatEur(view.xio.eur, locale)}
+                {empty ? "-" : formatEur(view.xio.eur, locale)}
               </p>
               <p className={`wallet-hero-jpy${empty ? " is-empty" : " is-filled"}`}>
-                {empty ? "—" : formatJpy(view.xio.jpy, locale)}
+                {empty ? "-" : formatJpy(view.xio.jpy, locale)}
               </p>
             </div>
           </div>
@@ -667,7 +673,7 @@ export default function ConnectedWallet() {
             <p className={`wallet-hero-rank${empty || view.rank == null ? " is-empty" : " is-filled"}`}>
               {t.richListPosition}{" "}
               {empty || view.rank == null
-                ? "—"
+                ? "-"
                 : `#${formatNumber(view.rank, locale, { maximumFractionDigits: 0 })}`}
             </p>
           </div>
@@ -734,9 +740,9 @@ export default function ConnectedWallet() {
           {(empty ? [0, 1, 2] : view.activity.concat([null, null, null]).slice(0, 3)).map((row, index) => (
             <li key={row?.timestamp || index}>
               {empty || !row
-                ? "—"
+                ? "-"
                 : row.kind === "vote"
-                  ? (t.votedOnPool || "Voted on {pair} — {fee} fee")
+                  ? (t.votedOnPool || "Voted on {pair} - {fee} fee")
                       .replace("{pair}", row.pair || "")
                       .replace("{fee}", formatFeePercent(row.feePercent, locale))
                   : row.side === "createPool"

@@ -913,6 +913,42 @@ export function writeRecordedLpIncome(address, rows, storage = globalThis.localS
   return next;
 }
 
+/** Recover fee XIO from an LP-token fee row (inverse of lpEquivalent). */
+export function feeXioFromLpTokens(lpTokens, pool = {}) {
+  const tokens = num(lpTokens);
+  const supply = num(pool.lp_supply);
+  const reserveXio = num(pool.reserve_asset ?? pool.reserve_xio);
+  if (!(tokens > 0) || !(supply > 0) || !(reserveXio > 0)) return 0;
+  return (tokens / supply) * reserveXio;
+}
+
+/** Fill asset amounts on fee rows that still only have legacy LP fields. */
+export function enrichFeeRowAssets(row, pool = {}) {
+  if (!row) return row;
+  const hasAssets = num(row.assetXio) > 0 || num(row.assetQuote) > 0;
+  if (hasAssets) {
+    return {
+      ...row,
+      quoteAsset: row.quoteAsset || pool.quote || String(row.pair || "").split("/")[1] || "",
+    };
+  }
+  const tokens = num(row.lpTokens ?? row.lpEarned);
+  const feeXio = feeXioFromLpTokens(tokens, pool);
+  if (!(feeXio > 0)) return row;
+  const assets = poolShareAssets({
+    feeXio,
+    reserveXio: pool.reserve_asset ?? pool.reserve_xio,
+    reserveQuote: pool.reserve_currency ?? pool.reserve_quote,
+    quoteAsset: pool.quote || pool.quoteName || row.quoteAsset,
+    pair: row.pair || pool.pair || pool.pool,
+  });
+  return {
+    ...row,
+    ...assets,
+    quoteAsset: assets.quoteAsset || row.quoteAsset || pool.quote || "",
+  };
+}
+
 export function mergeFrozenFees(...lists) {
   const map = new Map();
   for (const row of lists.flat()) {
@@ -922,9 +958,7 @@ export function mergeFrozenFees(...lists) {
     const tokens = num(row.lpTokens ?? row.lpEarned);
     if (!date || !isXioAmmPair(pair) || !(tokens > 0)) continue;
     const key = `${date}|${pair}`;
-    const current = map.get(key);
-    if (current) continue;
-    map.set(key, {
+    const incoming = {
       date,
       pair,
       lpTokens: tokens,
@@ -934,7 +968,18 @@ export function mergeFrozenFees(...lists) {
       assetQuote: num(row.assetQuote),
       quoteAsset: row.quoteAsset || pair.split("/")[1] || "",
       kind: "fee",
-    });
+    };
+    const current = map.get(key);
+    if (current) {
+      // Keep frozen USD/LP from the first row, but backfill missing assets from later lists
+      // (legacy localStorage rows predate the LP-to-assets display change).
+      if (!(num(current.assetXio) > 0) && incoming.assetXio > 0) current.assetXio = incoming.assetXio;
+      if (!(num(current.assetQuote) > 0) && incoming.assetQuote > 0) current.assetQuote = incoming.assetQuote;
+      if (!current.quoteAsset && incoming.quoteAsset) current.quoteAsset = incoming.quoteAsset;
+      if (!(Number(current.usd) > 0) && incoming.usd > 0) current.usd = incoming.usd;
+      continue;
+    }
+    map.set(key, incoming);
   }
   return mergeLpIncomeRows([...map.values()]).map((row) => ({
     ...row,
@@ -997,7 +1042,7 @@ export function incomeRowsForPair({
     dailyPrices: prices?.dailyPrices,
     now,
   });
-  return mergeFrozenFees(
+  const merged = mergeFrozenFees(
     filterIncomeByPair(
       (Array.isArray(recordedRows) ? recordedRows : []).filter((row) => !row.kind || row.kind === "fee"),
       want
@@ -1007,7 +1052,15 @@ export function incomeRowsForPair({
       (Array.isArray(snapshotRows) ? snapshotRows : []).filter((row) => !row.kind || row.kind === "fee"),
       want
     )
-  ).filter((row) => row.pair === want && num(row.lpTokens) > 0);
+  );
+  const pool = position || poolForIncomePair(want, positions, pools);
+  return merged
+    .map((row) => enrichFeeRowAssets(row, pool))
+    .filter((row) => {
+      if (row.pair !== want || !(num(row.lpTokens) > 0)) return false;
+      // Omit blank-looking days: need readable assets and/or USD.
+      return num(row.assetXio) > 0 || num(row.assetQuote) > 0 || Number(row.usd) > 0;
+    });
 }
 
 export function incomeDayKeys(rows = []) {
