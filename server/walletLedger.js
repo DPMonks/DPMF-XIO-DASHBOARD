@@ -350,7 +350,10 @@ export async function loadWalletLpFromLedger(address, options = {}) {
         },
         options
       ).catch(() => null);
-      const pair = known?.pair || live?.pair || catalog?.pool || catalog?.pool_name || "";
+      // Exchange rewards only: require a live catalog / known pool match.
+      // Never trust live.pair alone - pairFromVoteAssets used to invent base/quote junk.
+      const pair = known?.pair || catalog?.pool || catalog?.pool_name || "";
+      if (!pair) continue;
       const position = lpPositionFromPool(
         holding.lp_balance,
         {

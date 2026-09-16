@@ -40,9 +40,8 @@ export function isAllIncomePairs(value) {
   return String(value || "").trim().toUpperCase() === INCOME_ALL_PAIRS;
 }
 
-export function heldIncomePairs(positions = []) {
-  const names = (Array.isArray(positions) ? positions : [])
-    .filter((row) => num(row?.lp_balance) > 0)
+export function catalogIncomePairs(pools = []) {
+  const names = (Array.isArray(pools) ? pools : [])
     .map((row) => normalizeWalletPair(row?.pool || row?.pool_name || row?.pair || row))
     .filter((name) => isXioAmmPair(name));
   return [...new Set(names)].sort((left, right) => {
@@ -52,8 +51,22 @@ export function heldIncomePairs(positions = []) {
   });
 }
 
-export function incomePairChoices({ positions = [] } = {}) {
-  return [INCOME_ALL_PAIRS, ...heldIncomePairs(positions)];
+export function heldIncomePairs(positions = [], pools = []) {
+  const held = (Array.isArray(positions) ? positions : [])
+    .filter((row) => num(row?.lp_balance) > 0)
+    .map((row) => normalizeWalletPair(row?.pool || row?.pool_name || row?.pair || row))
+    .filter((name) => isXioAmmPair(name));
+  const catalog = catalogIncomePairs(pools);
+  const names = catalog.length ? held.filter((name) => catalog.includes(name)) : held;
+  return [...new Set(names)].sort((left, right) => {
+    if (left === DEFAULT_INCOME_PAIR) return -1;
+    if (right === DEFAULT_INCOME_PAIR) return 1;
+    return left.localeCompare(right);
+  });
+}
+
+export function incomePairChoices({ positions = [], pools = [] } = {}) {
+  return [INCOME_ALL_PAIRS, ...heldIncomePairs(positions, pools)];
 }
 
 function isCreditKind(kind) {
@@ -280,9 +293,10 @@ function volumeDaysFromPools(pools = [], now = Date.now()) {
 export function incomePairBalance({
   pair = INCOME_ALL_PAIRS,
   positions = [],
+  pools = [],
   activity = [],
 } = {}) {
-  const names = isAllIncomePairs(pair) ? heldIncomePairs(positions) : [incomePairName(pair)];
+  const names = isAllIncomePairs(pair) ? heldIncomePairs(positions, pools) : [incomePairName(pair)];
   return names.reduce((sum, name) => {
     const existing =
       (Array.isArray(positions) ? positions : []).find(
@@ -344,7 +358,7 @@ export function incomeHeldPoolRows({
   rlusdUsd = 1,
 } = {}) {
   const book = priceBookFromArgs({ xioUsd, xrpUsd, rlusdUsd, prices });
-  return heldIncomePairs(positions)
+  return heldIncomePairs(positions, pools)
     .map((pair) => {
       const pool = poolForIncomePair(pair, positions, pools);
       const lp = num(pool.lp_balance);
@@ -1017,7 +1031,7 @@ export function incomeRowsForPair({
     });
   }
   const want = incomePairName(pair);
-  const held = new Set(heldIncomePairs(positions));
+  const held = new Set(heldIncomePairs(positions, pools));
   if (!held.has(want)) return [];
   const activity = remapIncomeActivity(historyActivity, positions, pools);
   const position = incomePositionForPair(want, positions, pools, activity);

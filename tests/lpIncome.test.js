@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {lpFeeEarnings} from "../src/wallet/composeWallet.js";
-import {INCOME_ALL_PAIRS, HISTORICAL_INCOME_DAYS, dailyHeldLpBalances, dailyLpIncomeTotals, earliestHeldDay, fillContinuousVolumeDays, incomePairBalance, incomePairChoices, incomePairTotals, incomeHeldPoolRows, poolShareAssets, enrichFeeRowAssets, feeXioFromLpTokens, mergeFrozenFees, incomeRowsForPair, isXioAmmPair, lpDepositIncomeRows, lpFeeIncomeRows, lpIncomeCsv, lpTokenUsd, priceBookOnDay, mergeLpIncomeRows, mergeRecordedLpIncome, pageLpIncome, poolForIncomePair, readRecordedLpIncome, writeRecordedLpIncome} from "../src/wallet/lpIncome.js";
+import {INCOME_ALL_PAIRS, HISTORICAL_INCOME_DAYS, dailyHeldLpBalances, dailyLpIncomeTotals, earliestHeldDay, fillContinuousVolumeDays, incomePairBalance, catalogIncomePairs, incomePairChoices, incomePairTotals, incomeHeldPoolRows, poolShareAssets, enrichFeeRowAssets, feeXioFromLpTokens, mergeFrozenFees, incomeRowsForPair, isXioAmmPair, lpDepositIncomeRows, lpFeeIncomeRows, lpIncomeCsv, lpTokenUsd, priceBookOnDay, mergeLpIncomeRows, mergeRecordedLpIncome, pageLpIncome, poolForIncomePair, readRecordedLpIncome, writeRecordedLpIncome} from "../src/wallet/lpIncome.js";
 import {composeWalletSnapshot} from "../src/wallet/composeWallet.js";
 import {XIO_XRP_AMM, XIO_XRP_LP_HEX} from "../src/constants/ledger.js";
 
@@ -879,3 +879,22 @@ test("fee XIO splits into both pool assets for display", () => {
   assert.equal(assets.quoteAsset, "XRP");
 });
 
+
+
+test("income pair choices keep only exchange-catalog pools the wallet holds", () => {
+  const pairs = incomePairChoices({
+    positions: [
+      { pool: "XIO/XRP", lp_balance: 10 },
+      { pool: "XIO/BTC", lp_balance: 5 },
+      { pool: "XIO/ETH", lp_balance: 3 },
+      { pool: "XIO/XDX", lp_balance: 2 },
+    ],
+    pools: [
+      { pool: "XIO/XRP" },
+      { pool: "XIO/XDX" },
+      { pool: "XIO/RLUSD" },
+      { pool: "XIO/XSQUAD" },
+    ],
+  });
+  assert.deepEqual(pairs, ["ALL", "XIO/XRP", "XIO/XDX"]);
+});

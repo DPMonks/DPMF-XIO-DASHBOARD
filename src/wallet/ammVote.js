@@ -1,4 +1,4 @@
-import {RLUSD_HEX, RLUSD_ISSUER, XIO_CURRENCY, XIO_ISSUER, XDX_HEX, XDX_ISSUER, XSQUAD_HEX, XSQUAD_ISSUER, asciiCurrencyHex} from "../constants/ledger.js";
+import {RLUSD_HEX, RLUSD_ISSUER, XIO_CURRENCY, XIO_HEX, XIO_ISSUER, XDX_HEX, XDX_ISSUER, XSQUAD_HEX, XSQUAD_ISSUER, asciiCurrencyHex} from "../constants/ledger.js";
 import {hexToAscii} from "../xaman/signMarker.js";
 
 export const AMM_FEE_UNITS = 100_000;
@@ -19,7 +19,7 @@ export function feeUnitsFromPercent(percent) {
 
 export function formatFeePercent(percent, locale = "en") {
   const n = Number(percent);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "-";
   return `${n.toLocaleString(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: n < 0.01 ? 4 : n < 1 ? 3 : 2,
@@ -109,9 +109,10 @@ export function quoteTickerFromCurrency(code, issuer = "") {
     .replace(/^0X/, "");
   const who = String(issuer || "");
   if (!raw || raw === "XRP") return "XRP";
-  if (raw === "XIO" || raw.startsWith("584458")) return "XIO";
+  // XIO hex is 58494F... ; XDX hex is 584458... - do not conflate them.
+  if (raw === "XIO" || raw === XIO_HEX || raw.startsWith("58494F") || who === XIO_ISSUER) return "XIO";
+  if (raw === "XDX" || raw === XDX_HEX || raw.startsWith("584458") || who === XDX_ISSUER) return "XDX";
   if (raw === RLUSD_HEX || raw === "RLUSD") return "RLUSD";
-  if (raw === "XIO" || raw === XDX_HEX || who === XDX_ISSUER) return "XIO";
   if (raw === XSQUAD_HEX || raw === "XSQUAD" || who === XSQUAD_ISSUER) return "XSQUAD";
   if (/^[A-Z0-9.$]{2,12}$/.test(raw)) return raw;
   if (/^[A-F0-9]{40}$/.test(raw)) {
@@ -132,6 +133,8 @@ export function pairFromVoteAssets(asset, asset2) {
     if (!row || row.currency === "XRP") return "XRP";
     return quoteTickerFromCurrency(row.currency, row.issuer) || "XRP";
   });
+  // Only real XIO AMMs - never invent XIO/BTC from an unrelated LP.
+  if (!codes.includes("XIO")) return "";
   const quote = codes.find((code) => code !== "XIO") || "XRP";
   return `XIO/${quote}`;
 }
@@ -211,7 +214,7 @@ export function activityFromAmmVoteTx(row, address) {
 
 export function formatVoteWeight(weightPct, locale = "en") {
   const n = Number(weightPct);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "-";
   return `${n.toLocaleString(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: n < 1 ? 3 : 2,

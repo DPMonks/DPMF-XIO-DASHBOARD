@@ -804,6 +804,30 @@ export function emptyWalletSnapshot(address = null) {
   };
 }
 
+
+export function catalogPairKeys(pools = []) {
+  const keys = new Set();
+  for (const pool of Array.isArray(pools) ? pools : []) {
+    const pair = normalizeWalletPair(pool?.pool_name || pool?.pool || pool?.pair);
+    if (pair) keys.add(pair);
+    const amm = String(pool?.amm_account || pool?.amm || "").toLowerCase();
+    if (amm) keys.add(`amm:${amm}`);
+    const hex = String(pool?.lp_currency || pool?.lp_currency_hex || "").toUpperCase();
+    if (hex) keys.add(`lp:${hex}`);
+  }
+  return keys;
+}
+
+export function positionInExchangeCatalog(position, catalogKeys) {
+  if (!catalogKeys || catalogKeys.size === 0) return true;
+  const amm = String(position?.amm_account || "").toLowerCase();
+  if (amm && catalogKeys.has(`amm:${amm}`)) return true;
+  const hex = String(position?.lp_currency || "").toUpperCase();
+  if (hex && catalogKeys.has(`lp:${hex}`)) return true;
+  const pair = normalizeWalletPair(position?.pool || position?.pool_name || position?.pair);
+  return Boolean(pair && catalogKeys.has(pair));
+}
+
 export function composeWalletSnapshot({
   address,
   balances = {},
@@ -893,7 +917,8 @@ export function composeWalletSnapshot({
   for (const position of positionsFromLines(lineRows, pools)) {
     keepLp(position);
   }
-  const lp = [...lpByKey.values()];
+  const catalogKeys = catalogPairKeys(pools);
+  const lp = [...lpByKey.values()].filter((position) => positionInExchangeCatalog(position, catalogKeys));
 
   const xrpBook = books?.books?.["XIO/XRP"] || null;
   const pending = pendingFor(address, { offersKnown: true });

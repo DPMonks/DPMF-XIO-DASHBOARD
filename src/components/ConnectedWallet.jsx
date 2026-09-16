@@ -225,7 +225,7 @@ function WalletIncomePanel({ address, snapshotRows, positions, pools, priceBook,
   const cacheRef = useRef(new Map());
   const sentinelRef = useRef(null);
   const historyRows = remapIncomeActivity(historyActivity, positions, pools);
-  const pairs = incomePairChoices({ positions });
+  const pairs = incomePairChoices({ positions, pools });
   const selectedPair = pairs.includes(incomePair) ? incomePair : INCOME_ALL_PAIRS;
   const all = incomeRowsForPair({
     pair: selectedPair,
