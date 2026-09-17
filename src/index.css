@@ -51,7 +51,7 @@ html {
 
 body {
   background: #050507;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 button,
