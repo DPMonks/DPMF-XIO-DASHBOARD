@@ -5553,3 +5553,10 @@ body {
     overflow-wrap: anywhere;
   }
 }
+
+.xio-swap-min-out {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #d7b8ff;
+}

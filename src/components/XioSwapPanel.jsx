@@ -16,7 +16,7 @@ import {liveWalletAddress} from "../wallet/walletStorage";
 import {walletAvailableAmounts} from "../wallet/composeWallet";
 import {detectQuoteUsd} from "../utils/poolSplit";
 import {formatPercent, formatToken, formatUsd} from "../utils/format";
-import {sanitizeQtyInput} from "../xaman/tradeTx";
+import {sanitizeQtyInput, withMarketSlippage} from "../xaman/tradeTx";
 import BrandSelect from "./BrandSelect";
 
 const SWAP_PCTS = [25, 50, 75, 100];
@@ -591,12 +591,20 @@ export default function XioSwapPanel() {
                 {gotFill ? formatToken(quote.actualOutput, locale, sellingXio ? 4 : 2) : "0"}
               </p>
               <small>
-                {t.swapReceiveHint || "total tokens"}
+                {t.swapReceiveEst || "estimated"}
                 {toTicker ? ` · ${toTicker}` : ""}
                 {gotFill && tokenUsd(toTicker, quote.actualOutput, prices) > 0
                   ? ` · ${formatUsd(tokenUsd(toTicker, quote.actualOutput, prices), locale)}`
                   : ""}
               </small>
+              {gotFill && !buyingXio ? (
+                <p className="xio-swap-min-out">
+                  {(t.swapReceiveMin || "Min in Xaman: {amount}").replace(
+                    "{amount}",
+                    `${formatToken(withMarketSlippage(quote.actualOutput, "sell"), locale, sellingXio ? 4 : 2)}${toTicker ? ` ${toTicker}` : ""}`
+                  )}
+                </p>
+              ) : null}
               <dl className="xio-swap-venues">
                 <div>
                   <dt>{t.swapFromBook || "Order book"}</dt>
