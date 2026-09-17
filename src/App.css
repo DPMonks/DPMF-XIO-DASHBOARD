@@ -4308,76 +4308,62 @@ body {
 .wallet-income-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
 .wallet-income-table th,
 .wallet-income-table td {
-  padding: 4px 6px 4px 0;
+  padding: 4px 8px 4px 0;
   text-align: left;
+  vertical-align: top;
   white-space: nowrap;
+}
+
+.wallet-income-table th:nth-child(1),
+.wallet-income-table td:nth-child(1) {
+  width: 26%;
+}
+
+.wallet-income-table th:nth-child(2),
+.wallet-income-table td:nth-child(2),
+.wallet-income-table td.is-pool-share,
+.wallet-income-table td.is-lp,
+.wallet-income-table td.is-lp-add {
+  width: 52%;
+  text-align: left;
+  min-width: 0;
 }
 
 .wallet-income-table th:last-child,
 .wallet-income-table td:last-child {
+  width: 22%;
   text-align: right;
-  padding-right: 0;
+  padding-right: 4px;
 }
 
-.wallet-income-table th {
-  color: var(--dpmf-text-muted);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.wallet-income-table td {
-  color: var(--dpmf-text-main);
-}
-
-.wallet-income-table td.is-lp {
-  color: var(--dpmf-neon-violet);
-  font-weight: 700;
-}
-
-.wallet-income-table td.is-lp-add {
-  font-weight: 700;
-}
-
-.wallet-income-table .is-plus {
-  color: var(--dpmf-text-main);
-  margin-right: 2px;
-}
-
-.wallet-income-table .is-add {
-  color: var(--dpmf-neon-violet);
-}
-
-.wallet-income-day,
-.wallet-income-pair {
-  display: block;
-}
-
-.wallet-income-pair {
-  margin-top: 2px;
-  color: var(--dpmf-text-muted);
-  font-size: 10px;
-}
-
-
-
+/* Amount (right) | ticker (left) with a shared gutter on every row */
 .wallet-income-assets {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 11ch;
-  column-gap: 0.75rem;
-  row-gap: 0.2rem;
-  align-items: baseline;
-  justify-content: stretch;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.12rem;
+  width: 20.5ch;
   max-width: 100%;
-  line-height: 1.25;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
+  line-height: 1.25;
+}
+
+.wallet-income-assets .wallet-income-line {
+  display: grid;
+  grid-template-columns: 14ch 6ch;
+  column-gap: 0.5rem;
+  align-items: baseline;
+  width: 20.5ch;
+  max-width: 100%;
 }
 
 .wallet-income-assets .wallet-income-amt,
@@ -4385,12 +4371,15 @@ body {
 .wallet-lp-earn .wallet-income-amt,
 .wallet-lp-earn .wallet-asset-amt {
   margin: 0;
+  padding: 0;
   font-weight: 700;
   font-style: normal;
   color: var(--dpmf-neon-violet, #c770ff);
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   min-width: 0;
 }
 
@@ -4398,12 +4387,13 @@ body {
 .wallet-income-assets .wallet-asset-ticker,
 .wallet-lp-earn .wallet-income-ticker,
 .wallet-lp-earn .wallet-asset-ticker {
-  display: inline-block;
+  display: block;
   box-sizing: border-box;
-  width: 11ch;
-  min-width: 11ch;
-  max-width: 11ch;
+  width: 6ch;
+  min-width: 6ch;
+  max-width: 6ch;
   margin: 0;
+  padding: 0;
   font-style: normal;
   font-weight: 600;
   color: #fff;
@@ -4412,46 +4402,11 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.02em;
+  text-align: left;
 }
 
-.wallet-income-assets .is-plus {
-  color: var(--dpmf-neon-violet, #c770ff);
-  font-weight: 700;
-  margin-right: 0.15em;
-}
-
-.wallet-income-assets .wallet-earn-usd,
-.wallet-lp-earn .wallet-earn-usd {
-  grid-column: 1 / -1;
-}
-
-.wallet-income-table td.is-pool-share {
-  white-space: normal;
-  width: 48%;
-  min-width: 12rem;
-  vertical-align: middle;
-}
-.wallet-income-table th:nth-child(2),
-.wallet-income-table td.is-lp,
-.wallet-income-table td.is-lp-add {
-  width: 48%;
-  min-width: 12rem;
-}
-
-@media (max-width: 900px) {
-  .wallet-income-assets {
-    grid-template-columns: minmax(0, 1fr) 11ch;
-    column-gap: 0.65rem;
-    width: 100%;
-  }
-}
-
-@media (max-width: 560px) {
-  .wallet-income-assets {
-    grid-template-columns: minmax(0, 1fr) 11ch;
-    column-gap: 0.5rem;
-    width: 100%;
-  }
+.wallet-lp-earn.wallet-income-assets {
+  width: 20.5ch;
 }
 
 .wallet-income-table td.is-earn {
