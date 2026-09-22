@@ -920,16 +920,6 @@ export default function HybridPlot({
                     strokeWidth: box.strokeWidth,
                   }}
                 />
-              {row.outlier ? (
-                  <circle
-                    className="hybrid-outlier-mark"
-                    cx={x}
-                    cy={bodyTop - 5}
-                    r={2.4}
-                  >
-                    <title>Outlier AMM/swap print clipped for scale</title>
-                  </circle>
-                ) : null}
               </g>
             );
           })
