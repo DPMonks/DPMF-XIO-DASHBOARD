@@ -928,6 +928,14 @@ body {
   margin-top: auto;
 }
 
+.lists-row > .dashboard-card > [data-deck-gate] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
 .lists-row .rich-list,
 .lists-row .scroll-area {
   flex: 1 1 auto;
@@ -939,6 +947,39 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
+}
+
+.lists-row .rich-table-wrap {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--dpmf-scroll-thumb) var(--dpmf-scroll-track);
+  scrollbar-width: thin;
+}
+
+.lists-row .rich-table-wrap > .scroll-area {
+  overflow: visible;
+}
+
+.lists-row .rich-table-wrap::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lists-row .rich-table-wrap::-webkit-scrollbar-track {
+  background: var(--dpmf-scroll-track);
+  border-radius: 999px;
+}
+
+.lists-row .rich-table-wrap::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #d28fff 0%, #c770ff 42%, #6a2d99 100%);
+  border: 2px solid var(--dpmf-scroll-track);
+  border-radius: 999px;
+  background-clip: padding-box;
+  box-shadow: 0 0 8px rgba(199, 112, 255, 0.35);
+}
+
+.lists-row .rich-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--dpmf-scroll-thumb-hover);
 }
 
 .create-pool-card {
