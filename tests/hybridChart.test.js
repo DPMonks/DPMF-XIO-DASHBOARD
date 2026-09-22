@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {ticksToCandles, sma, ema, wma, smma, vwma, movingAverage, averagesForWindow, interpolateAverage, seedSeriesForAverages, candleBodyBox, candleBodyWidth, appendLiveClose, resampleCandles, fillDailyGaps, candlesFromMarketData, expandDailyToInterval, clampPanOffset, clampVisibleBars, FUTURE_BARS_MIN, futureBarLimit, futureBarsFromPan, liveSeriesGrew, panAfterZoom, wheelPanSteps, wheelZoomSteps, windowBars, windowLastBars, zoomVisibleBars, clipCandleWicks, wickClipOptions, wickClipPairDefaults} from "../src/chart/candles.js";
 import {bucketTime, CHART_PAIRS, DEFAULT_INTERVAL, visibleBarsForInterval} from "../src/chart/intervals.js";
-import {backdateRlusdCandle, quotePerXio, stitchRlusdCandles} from "../src/chart/pairQuote.js";
-import {ammImpact, ammSupportResistanceRibbon, arbitrageWindow, clampPriceZoom, liquidityPressure, liquidityWalls, percentile, scalePriceView, shiftAfterPriceZoom, smartView, zoomPriceScale} from "../src/chart/overlays.js";
+import {backdateRlusdCandle, orientQuotePrice, quotePerXio, stitchRlusdCandles} from "../src/chart/pairQuote.js";
+import {ammImpact, ammSupportResistanceRibbon, arbitrageWindow, clampPriceZoom, heatmapDots, liquidityPressure, liquidityWalls, percentile, scalePriceView, shiftAfterPriceZoom, smartView, zoomPriceScale} from "../src/chart/overlays.js";
 import {walletChartMarks} from "../src/chart/walletMarks.js";
 import {composePairCandles, lockedSnapshot} from "../src/chart/composeChart.js";
 import {boxPriceHeight, fullViewPriceHeight} from "../src/chart/fullView.js";
@@ -1028,4 +1028,79 @@ test("ammSupportResistanceRibbon builds support/resistance from AMM vs mid", () 
   assert.ok(padded.support < 2.0);
   assert.ok(padded.resistance > 2.02);
   assert.equal(ammSupportResistanceRibbon(0, 2), null);
+});
+
+test("orientQuotePrice flips reciprocal AMM prints and drops junk", () => {
+  assert.ok(Math.abs(orientQuotePrice(0.025, 33) - 40) < 1e-9);
+  assert.ok(Math.abs(orientQuotePrice(38, 33) - 38) < 1e-9);
+  assert.equal(orientQuotePrice(1.66e-6, 24), null);
+  assert.equal(orientQuotePrice(600000, 24), null);
+});
+
+test("composePairCandles keeps XIO pairs on the locked scale when AMM prints are inverted", () => {
+  const t = Date.parse("2026-09-20T00:00:00.000Z");
+  const day = 86_400_000;
+  const locked = {
+    pairs: {
+      "XIO/RLUSD": {
+        candles: [
+          { t, o: 32, h: 34, l: 31, c: 33, v: 1 },
+          { t: t + day, o: 33, h: 35, l: 32, c: 34, v: 1 },
+        ],
+      },
+      "XIO/XRP": {
+        candles: [
+          { t, o: 24, h: 25, l: 23, c: 24.2, v: 1 },
+          { t: t + day, o: 24.2, h: 26, l: 24, c: 25, v: 1 },
+        ],
+      },
+    },
+    xrpUsd: [],
+  };
+  const now = t + 2 * day;
+  const rlusd = composePairCandles({
+    pair: "XIO/RLUSD",
+    interval: "15m",
+    range: "5D",
+    locked,
+    trades: [
+      { timestamp: new Date(t + day + 3_600_000).toISOString(), pool: "XIO/RLUSD", price: 0.025, xio: 4, side: "buy" },
+      { timestamp: new Date(t + day + 7_200_000).toISOString(), pool: "XIO/RLUSD", price: 38, xio: 3, side: "sell" },
+    ],
+    livePrice: 0.026,
+    now,
+    windowed: false,
+  });
+  const xrp = composePairCandles({
+    pair: "XIO/XRP",
+    interval: "15m",
+    range: "5D",
+    locked,
+    trades: [
+      { timestamp: new Date(t + day + 3_600_000).toISOString(), pool: "XIO/XRP", price: 26.7, xio: 2, side: "sell" },
+      { timestamp: new Date(t + day + 7_200_000).toISOString(), pool: "XIO/XRP", price: 1.66e-6, xio: 2, side: "buy" },
+      { timestamp: new Date(t + day + 7_200_000).toISOString(), pool: "XIO/XRP", price: 585000, xio: 2, side: "buy" },
+    ],
+    now,
+    windowed: false,
+  });
+  for (const [name, candles, lo, hi] of [
+    ["XIO/RLUSD", rlusd, 8, 120],
+    ["XIO/XRP", xrp, 6, 80],
+  ]) {
+    const closes = candles.map((row) => row.c);
+    const max = Math.max(...closes);
+    const min = Math.min(...closes);
+    assert.ok(min > lo && max < hi, `${name} left its scale ${min}..${max}`);
+  }
+  const dots = heatmapDots(
+    [
+      { timestamp: new Date(t + day).toISOString(), price: 0.025, xio: 4, side: "buy" },
+      { timestamp: new Date(t + day).toISOString(), price: 38, xio: 3, side: "sell" },
+      { timestamp: new Date(t + day).toISOString(), price: 1.66e-6, xio: 1, side: "buy" },
+    ],
+    { now, reference: 33 }
+  );
+  assert.equal(dots.length, 2);
+  assert.ok(dots.every((dot) => dot.price > 20 && dot.price < 80));
 });

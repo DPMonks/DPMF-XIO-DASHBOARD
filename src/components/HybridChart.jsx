@@ -8,7 +8,7 @@ import {RSI_OVERBOUGHT, RSI_OVERSOLD, RSI_PERIODS, rsiForWindow} from "../chart/
 import {composePairCandles, lockedSnapshot} from "../chart/composeChart";
 import {defaultCexLimit, fetchCexCandles, usesCexTape} from "../chart/cexCandles";
 import {boxPriceHeight, fullViewPriceHeight} from "../chart/fullView";
-import {quotePerXio} from "../chart/pairQuote";
+import {quotePerXio, referenceClose} from "../chart/pairQuote";
 import {ammRebalanceTrail, ammSupportResistanceRibbon, arbitrageWindow, bookBands, heatmapDots, liquidityPressure, liquidityWalls, microEvents, scalePriceView, shiftAfterPriceZoom, smartView, zoomPriceScale} from "../chart/overlays";
 import {walletChartMarks} from "../chart/walletMarks";
 import {buildDeskMarks, buildEstimateMarks, buildEstimateScenarioOverlay, deskMarkAskPrompt} from "../chart/aimMarks";
@@ -565,7 +565,11 @@ export default function HybridChart({
   const ammRibbon = ammSupportResistanceRibbon(ammPrice, header.mid || livePrice, { padBps: ammRibbonBps });
   const autoView = smartView(candles, { rangeId: "Max", spread: bands.spread, now });
   const view = scalePriceView(autoView, { zoom: priceZoom, shift: priceShift });
-  const heat = heatmapDots(trades.filter((row) => !row.pool || String(row.pool).toUpperCase() === pair));
+  const priceRef = referenceClose(series) || Number(series[series.length - 1]?.c) || Number(bands.mid) || livePrice || null;
+  const heat = heatmapDots(
+    trades.filter((row) => !row.pool || String(row.pool).toUpperCase() === pair),
+    { reference: priceRef }
+  );
   const trail = ammRebalanceTrail(
     candles.slice(-24).map((row) => ({ t: row.t, price: row.c, timestamp: row.t }))
   );
@@ -579,8 +583,9 @@ export default function HybridChart({
     ),
     fills: mergeWalletActivity(ledgerFills, trades, walletPending.activity),
     pair,
+    reference: priceRef,
   });
-  const tapeRef = Number(candles[candles.length - 1]?.c) || Number(bands.mid) || livePrice || null;
+  const tapeRef = priceRef;
   const aimDeskMarks = deskOrders ? buildDeskMarks(deskOrders, pair, tapeRef) : [];
   const estimatePair = String(estimate?.pair || "XRP/RLUSD").replace(/\s+/g, "").toUpperCase();
   const estimateMatchesPair = Boolean(estimate) && sameChartPair(estimatePair, pair);
