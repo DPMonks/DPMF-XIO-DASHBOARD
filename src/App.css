@@ -953,8 +953,10 @@ body {
   overflow-x: hidden;
   overflow-y: scroll;
   overscroll-behavior: contain;
-  scrollbar-color: var(--dpmf-scroll-thumb) var(--dpmf-scroll-track);
-  scrollbar-width: thin;
+  /* `scrollbar-width: thin` on `*` is an overlay bar in current Chrome, so the
+     violet thumb never paints. `auto` keeps a classic bar in the brand color. */
+  scrollbar-width: auto;
+  scrollbar-color: #c770ff var(--dpmf-scroll-track, #101018);
 }
 
 .lists-row .rich-table-wrap > .scroll-area {
@@ -972,9 +974,7 @@ body {
 
 .lists-row .rich-table-wrap::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #d28fff 0%, #c770ff 42%, #6a2d99 100%);
-  border: 2px solid var(--dpmf-scroll-track);
   border-radius: 999px;
-  background-clip: padding-box;
   box-shadow: 0 0 8px rgba(199, 112, 255, 0.35);
 }
 
