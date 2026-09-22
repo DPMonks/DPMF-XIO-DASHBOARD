@@ -1,3 +1,5 @@
+import {orientQuotePrice} from "./pairQuote.js";
+
 export function sameWallet(value, address) {
   const who = String(address || "").trim().toLowerCase();
   const name = String(value || "").trim().toLowerCase();
@@ -18,7 +20,7 @@ export function sameChartPair(value, pair) {
   return left.endsWith(`/${rightQuote}`) || left === rightQuote;
 }
 
-export function walletChartMarks({ address, orders = [], fills = [], pair } = {}) {
+export function walletChartMarks({ address, orders = [], fills = [], pair, reference = null } = {}) {
   const who = String(address || "").trim();
   if (!who) return { orders: [], fills: [] };
 
@@ -39,10 +41,10 @@ export function walletChartMarks({ address, orders = [], fills = [], pair } = {}
       .filter((row) => sameChartPair(row.pool || row.pair, pair))
       .map((row) => ({
         t: Date.parse(row.timestamp || row.t),
-        price: Number(row.price) || null,
-        amount: Number(row.xio ?? row.amount ?? 0),
+        price: orientQuotePrice(row.price, reference),
+        amount: Number(row.xio ?? row.xdx ?? row.amount ?? 0),
         side: String(row.side || "").toLowerCase() === "sell" ? "sell" : "buy",
       }))
-      .filter((row) => Number.isFinite(row.t)),
+      .filter((row) => Number.isFinite(row.t) && row.price > 0),
   };
 }

@@ -488,6 +488,16 @@ export function expandDailyToInterval(daily = [], intervalId, fromMs, toMs) {
   );
   const out = [];
   let prev = null;
+  let prevDay = -Infinity;
+  const startDay = bucketTime(start, "1D");
+  // A 1m/3m window opened in the afternoon never lands on midnight, so seed
+  // the carry from the last daily candle at or before the window.
+  for (const row of Array.isArray(daily) ? daily : []) {
+    const day = bucketTime(row.t, "1D");
+    if (day == null || day > startDay || day < prevDay) continue;
+    prevDay = day;
+    prev = row;
+  }
   const want = Math.ceil((end - start) / step) + 2;
   const limit = start + step * Math.min(4000, Math.max(1200, want));
   for (let t = start; t <= end && t <= limit; t += step) {

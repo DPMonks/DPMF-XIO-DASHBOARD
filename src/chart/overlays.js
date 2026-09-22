@@ -1,4 +1,5 @@
 import {ammSpot} from "../ammCurve.js";
+import {orientQuotePrice} from "./pairQuote.js";
 
 export function median(values = []) {
   const nums = values.map(Number).filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
@@ -137,13 +138,13 @@ export function ammSupportResistanceRibbon(ammPrice, mid, { padBps = 0 } = {}) {
   };
 }
 
-export function heatmapDots(trades = [], { now = Date.now(), maxAgeMs = 24 * 3_600_000 } = {}) {
+export function heatmapDots(trades = [], { now = Date.now(), maxAgeMs = 24 * 3_600_000, reference = null } = {}) {
   return (Array.isArray(trades) ? trades : [])
     .map((row) => {
       const t = Date.parse(row.timestamp || row.t || row.time);
-      const size = Number(row.xio ?? row.base_size ?? row.v ?? 0);
-      const price = Number(row.price);
-      if (!Number.isFinite(t) || !(size > 0)) return null;
+      const size = Number(row.xio ?? row.xdx ?? row.base_size ?? row.v ?? 0);
+      const price = orientQuotePrice(row.price, reference);
+      if (!Number.isFinite(t) || !(size > 0) || !(price > 0)) return null;
       const age = now - t;
       if (age > maxAgeMs) return null;
       return {

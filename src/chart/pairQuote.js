@@ -108,3 +108,71 @@ export function stitchRlusdCandles({
 export function issuedAtMs() {
   return Date.parse(XIO_ISSUED_AT);
 }
+
+const STABLE_QUOTES = new Set(["USD", "USDC", "USDT"]);
+
+/**
+ * Median close of recent real candles. Carry/session fills are not a price reference.
+ */
+export function referenceClose(candles = [], { take = 60 } = {}) {
+  const closes = [];
+  const list = Array.isArray(candles) ? candles : [];
+  const limit = Math.max(1, Math.trunc(Number(take) || 60));
+  for (let i = list.length - 1; i >= 0 && closes.length < limit; i -= 1) {
+    const row = list[i];
+    const src = String(row?.source || "");
+    if (src === "carry" || src === "session") continue;
+    const close = Number(row?.c ?? row?.price ?? row?.p);
+    if (close > 0) closes.push(close);
+  }
+  if (!closes.length) return null;
+  closes.sort((a, b) => a - b);
+  return closes[Math.floor(closes.length / 2)];
+}
+
+/**
+ * Quote-per-base price for the chart scale.
+ * Keeps prints near `reference`, flips reciprocals (token-per-quote tapes), drops the rest.
+ * With no reference, a positive price is returned unchanged.
+ */
+export function orientQuotePrice(price, reference, { factor = 6 } = {}) {
+  const value = Number(price);
+  if (!(value > 0)) return null;
+  const ref = Number(reference);
+  if (!(ref > 0)) return exactQuote(value);
+  const band = Number(factor) > 1 ? Number(factor) : 6;
+  const lo = ref / band;
+  const hi = ref * band;
+  if (value >= lo && value <= hi) return exactQuote(value);
+  const inverse = 1 / value;
+  if (inverse >= lo && inverse <= hi) return exactQuote(inverse);
+  return null;
+}
+
+/** Geometric-median scale when a pair has no locked candle to anchor to. */
+export function inferQuoteReference(prices = [], { factor = 6 } = {}) {
+  const nums = (Array.isArray(prices) ? prices : []).map(Number).filter((value) => value > 0);
+  if (!nums.length) return null;
+  const band = Number(factor) > 1 ? Number(factor) : 6;
+  const logs = nums.map((value) => Math.log(value)).sort((a, b) => a - b);
+  const geo = Math.exp(logs[Math.floor(logs.length / 2)]);
+  const near = nums.filter((value) => value >= geo / band && value <= geo * band).length;
+  if (near >= nums.length * 0.5) return geo;
+  const flipped = nums
+    .filter((value) => value < geo / band || value > geo * band)
+    .map((value) => 1 / value)
+    .filter((value) => value > 0);
+  if (!flipped.length) return geo;
+  const altLogs = flipped.map((value) => Math.log(value)).sort((a, b) => a - b);
+  const alt = Math.exp(altLogs[Math.floor(altLogs.length / 2)]);
+  const score = (ref) => nums.filter((value) => orientQuotePrice(value, ref, { factor: band }) != null).length;
+  return score(alt) > score(geo) ? alt : geo;
+}
+
+/** USD/USDC/USDT charts follow the same token's RLUSD candle when they have no tape of their own. */
+export function stablePegReference(pair, pairs = {}) {
+  const [base, quote] = String(pair || "").toUpperCase().split("/");
+  if (!base || !STABLE_QUOTES.has(quote)) return null;
+  const rows = pairs?.[`${base}/RLUSD`]?.candles;
+  return referenceClose(Array.isArray(rows) ? rows : []);
+}
