@@ -271,6 +271,19 @@ test("hollow candle boxes keep the slot width so packed 15m bars do not merge", 
   assert.ok(hollow.height >= 2.2);
 });
 
+test("expandDailyToInterval carries the daily candle into an afternoon 1m window", () => {
+  const day = Date.parse("2026-09-22T00:00:00.000Z");
+  const from = day + 15 * 3_600_000;
+  const expanded = expandDailyToInterval(
+    [{ t: day, o: 20, h: 22, l: 19, c: 21, v: 4 }],
+    "1m",
+    from,
+    from + 30 * 60_000
+  );
+  assert.ok(expanded.length >= 30, `afternoon 1m window collapsed to ${expanded.length}`);
+  assert.ok(expanded.every((row) => row.c > 0));
+});
+
 test("expandDailyToInterval builds 1H buckets and windowLastBars keeps the tail", () => {
   const day = Date.parse("2026-08-21T00:00:00.000Z");
   const expanded = expandDailyToInterval(
